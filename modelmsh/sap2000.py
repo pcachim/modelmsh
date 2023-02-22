@@ -4,6 +4,7 @@ import gmsh
 import openpyxl
 import numpy as np
 import pandas as pd
+import pathlib
 import sys
 import logging
 
@@ -12,7 +13,7 @@ POINT = 15
 FRAME2 = 1
 FRAME3 = 8
 TRIANGLE3 = 2
-TRIANGLE6 = 2
+TRIANGLE6 = 9
 QUADRANGLE4 = 3
 QUADRANGLE8 = 16
 QUADRANGLE9 = 10
@@ -25,6 +26,7 @@ PYRAMID13 = 18
 # Dimension
 POINT = 0
 LINE = 1
+CURVE = 1
 SURFACE = 2
 VOLUME = 3
 
@@ -198,6 +200,7 @@ class sap2000_handler:
             filename (str): the name of the file to be written
         """
 
+
         joints = self.s2kDatabase['Joint Coordinates'.upper()]
         elems = self.s2kDatabase['Connectivity - Frame'.upper()]
         areas = self.s2kDatabase['Connectivity - Area'.upper()]
@@ -324,8 +327,13 @@ class sap2000_handler:
 
         # initialize gmsh
         gmsh.initialize(sys.argv)
-        #gmsh.model.add("title")
-
+        
+        try:
+            title = self.s2kDatabase['PROJECT INFORMATION'].at['Project Name', 0]
+        except:
+            title = pathlib.Path(filename).stem
+        gmsh.model.add(title)
+        
         joints = self.s2kDatabase['Joint Coordinates'.upper()]
         elems = self.s2kDatabase['Connectivity - Frame'.upper()]
         areas = self.s2kDatabase['Connectivity - Area'.upper()]
@@ -336,13 +344,10 @@ class sap2000_handler:
         sectassign = self.s2kDatabase['Frame Section Assignments'.upper()]
         areasect = self.s2kDatabase['Area Section Properties'.upper()]
         areaassign = self.s2kDatabase['Area Section Assignments'.upper()]
+        groups = self.s2kDatabase['Groups 1 - Definitions'.upper()]
+        groupsassign = self.s2kDatabase['Groups 2 - Assignments'.upper()]
+        
 
-        
-        try:
-            title = self.s2kDatabase['PROJECT INFORMATION'].at['Project Name', 0]
-        except:
-            title = "filename"
-        
         logging.basicConfig(level=logging.DEBUG)
         logging.info("Writing GMSH file: %s", filename)
             
@@ -351,10 +356,12 @@ class sap2000_handler:
         logging.info(f"Processing nodes ({njoins})...")
         ijoins = np.arange(1, njoins+1)
         joints.insert(0, "JoinTag", ijoins, False)
-        joints['Joint'] = joints['Joint'].map(str) 
+        joints['Joint'] = joints['Joint'].map(str)
+        joints['Joint2'] = joints.loc[:, 'Joint']
         joints.set_index('Joint', inplace=True)
         joints['coord'] = joints.apply(lambda x: np.array([x['XorR'], x['Y'], x['Z']]),axis=1) 
         lst1 = joints['coord'].explode().to_list()
+
 
         line = gmsh.model.addDiscreteEntity(POINT)
         gmsh.model.mesh.addNodes(POINT, line, ijoins, lst1)
@@ -391,14 +398,28 @@ class sap2000_handler:
         for row in sect.itertuples():
             sec = getattr(row, 'SectionName')
             lst = elems.loc[elems['Section']==sec]['ElemTag'].values
-            gmsh.model.addPhysicalGroup(LINE, lst, name=sec)
+            gmsh.model.addPhysicalGroup(LINE, lst, name="Frame section: " + sec)
 
-        logging.info("Processing area sections...")
+        logging.debug("Processing area sections...")
 
         for row in areasect.itertuples():
             sec = getattr(row, 'Section')
             lst = areas.loc[areas['Section']==sec]['ElemTag'].values
-            gmsh.model.addPhysicalGroup(SURFACE, lst, name=sec)
+            gmsh.model.addPhysicalGroup(SURFACE, lst, name="Area section: " + sec)
+
+        logging.debug("Processing groups...")
+
+        for row in groups.itertuples():
+            group = getattr(row, 'GroupName')
+            lst = groupsassign.loc[(groupsassign['ObjectType']=='Frame') & (groupsassign['GroupName']==group)]['ObjectLabel'].values
+            if len(lst) > 0:
+                lst2 = elems[elems['Frame'].isin(lst)]['ElemTag'].values
+                gmsh.model.addPhysicalGroup(LINE, lst2, name="Group: " + group)            
+            
+            lst = groupsassign.loc[(groupsassign['ObjectType']=='Area') & (groupsassign['GroupName']==group)]['ObjectLabel'].values
+            if len(lst) > 0:
+                lst2 = areas[areas['Area'].isin(lst)]['ElemTag'].values
+                gmsh.model.addPhysicalGroup(SURFACE, lst2, name="Group: " + group)
 
         logging.debug("Processing GMSH intialization...")
 
