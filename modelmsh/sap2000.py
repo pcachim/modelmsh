@@ -7,6 +7,7 @@ import pandas as pd
 import pathlib
 import sys
 import logging
+import timeit
 
 # Element type
 POINT = 15
@@ -90,18 +91,13 @@ def read_line(s: str, s0, cont: bool=False) -> dict:
     return variables
 
 
-def rename_area_nodes(joints, elem, node1, node2, node3, node4):
+def rename_area_nodes(elem, nodes):
     surf = gmsh.model.addDiscreteEntity(SURFACE)
-    lst =  [joints.at[node1, "JoinTag"],
-            joints.at[node2, "JoinTag"],
-            joints.at[node3, "JoinTag"]]
-    if node4 == 'nan':
-        gmsh.model.mesh.addElementsByType(surf, TRIANGLE3, [elem], lst)
+    if len(nodes) == 3:
+        gmsh.model.mesh.addElementsByType(surf, TRIANGLE3, [elem], nodes)
     else:
-        lst.append(joints.at[node4, 'JoinTag'])
-        gmsh.model.mesh.addElementsByType(surf, QUADRANGLE4, [elem], lst)
-    return lst
-
+        gmsh.model.mesh.addElementsByType(surf, QUADRANGLE4, [elem], nodes)
+    return
 
 def rename_elem_nodes(joints, elem, node1, node2):
     surf = gmsh.model.addDiscreteEntity(LINE)
@@ -377,36 +373,29 @@ class sap2000_handler:
             axis=1
             )
 
-        nelems = areas.shape[0]
-        iareas = np.arange(1, nelems+1)
+        starttime = timeit.default_timer()
 
-        logging.info(f"Processing areas ({nelems})...")
-        
-        areas.insert(1, "ElemTag", iareas, False)
+        nelems = areas.shape[0]
+        logging.info(f"Processing ares ({nelems})...")
+        areas.insert(1, "ElemTag", np.arange(1, nelems+1), False)
         areas.insert(2, "Section", areaassign['Section'].values, False)
         areas[['Area','Joint1','Joint2','Joint3','Joint4']] = areas[['Area','Joint1','Joint2','Joint3','Joint4']].astype(str)
+        areas['Node1'] = joints.loc[areas['Joint1'].values, 'JoinTag'].values
+        areas['Node2'] = joints.loc[areas['Joint2'].values, 'JoinTag'].values
+        areas['Node3'] = joints.loc[areas['Joint3'].values, 'JoinTag'].values
+        areas['Node4'] = areas.apply(lambda row: 'nan' if row['Joint4'] == 'nan' else joints.at[row['Joint4'], 'JoinTag'], axis=1)
+        areas['Nodes'] = areas.apply(lambda x:[x['Node1'], x['Node2'], x['Node3']] 
+                if x['Joint4'] == 'nan' else [x['Node1'], x['Node2'], x['Node3'], x['Node4']], axis=1)
 
-        logging.debug("Processing areas...")
+        #areas['Nodes'] = areas[["Node1", "Node2", "Node3"]].values.tolist()
+        #areas['Nodes'] = areas.loc[areas['Joint4'] == 'nan', ["Node1", "Node2", "Node3"]].values.tolist()
         #areas['Nodes'] = areas.apply(lambda x: np.array([joints.at[x['Joint1'], "JoinTag"], x['Joint2'], x['Joint3']]),axis=1) 
         areas.apply(
-            lambda x: rename_area_nodes(joints,x['ElemTag'],x["Joint1"],x["Joint2"],x["Joint3"],x["Joint4"]), 
+            lambda x: rename_area_nodes(x['ElemTag'],x["Nodes"]), 
             axis=1
             )
-                    
-        logging.debug("Processing frame sections...")
 
-        for row in sect.itertuples():
-            sec = getattr(row, 'SectionName')
-            lst = elems.loc[elems['Section']==sec]['ElemTag'].values
-            gmsh.model.addPhysicalGroup(LINE, lst, name="Frame section: " + sec)
-
-        logging.debug("Processing area sections...")
-
-        for row in areasect.itertuples():
-            sec = getattr(row, 'Section')
-            lst = areas.loc[areas['Section']==sec]['ElemTag'].values
-            gmsh.model.addPhysicalGroup(SURFACE, lst, name="Area section: " + sec)
-
+        logging.debug(f"Execution time: {round((timeit.default_timer() - starttime)*1000,3)} ms")
         logging.debug("Processing groups...")
 
         for row in groups.itertuples():
@@ -420,6 +409,20 @@ class sap2000_handler:
             if len(lst) > 0:
                 lst2 = areas[areas['Area'].isin(lst)]['ElemTag'].values
                 gmsh.model.addPhysicalGroup(SURFACE, lst2, name="Group: " + group)
+
+        logging.debug("Processing frame sections...")
+
+        for row in sect.itertuples():
+            sec = getattr(row, 'SectionName')
+            lst = elems.loc[elems['Section']==sec]['ElemTag'].values
+            gmsh.model.addPhysicalGroup(LINE, lst, name="Frame section: " + sec)
+
+        logging.debug("Processing area sections...")
+
+        for row in areasect.itertuples():
+            sec = getattr(row, 'Section')
+            lst = areas.loc[areas['Section']==sec]['ElemTag'].values
+            gmsh.model.addPhysicalGroup(SURFACE, lst, name="Area section: " + sec)
 
         logging.debug("Processing GMSH intialization...")
 
