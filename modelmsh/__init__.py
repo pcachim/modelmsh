@@ -8,3 +8,4 @@ with the following features:
 
 from . import sap2000
 from .sap2000 import sap2000_handler
+from .femix import femix_handler

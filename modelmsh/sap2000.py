@@ -320,6 +320,7 @@ class sap2000_handler:
         Args:
             filename (str): the name of the file to be written
         """
+        automesh = False
 
         # initialize gmsh
         gmsh.initialize(sys.argv)
@@ -329,10 +330,36 @@ class sap2000_handler:
         except:
             title = pathlib.Path(filename).stem
         gmsh.model.add(title)
-        
-        joints = self.s2kDatabase['Joint Coordinates'.upper()]
-        elems = self.s2kDatabase['Connectivity - Frame'.upper()]
-        areas = self.s2kDatabase['Connectivity - Area'.upper()]
+
+        try:
+            joints = self.s2kDatabase['Joint Coordinates'.upper()]
+        except:
+            logging.error("You musr export table 'Joint Coordinates' from SAp2000")
+        try:
+            coordsauto = self.s2kDatabase["Objects And Elements - Joints".upper]
+            automesh = True
+        except:
+            coordsauto = joints
+            logging.error("You musr export table 'Objects And Elements - Jooints' from SAp2000")
+
+        try:
+            elems = self.s2kDatabase['Connectivity - Frame'.upper()]
+            try:
+                lnodesframe = self.s2kDatabase["Objects And Elements - Frames".upper]
+            except:
+                logging.error("You musr export table 'Objects And Elements - Frames' from SAp2000")
+        except:
+            pass
+
+        try:
+            areas = self.s2kDatabase['Connectivity - Area'.upper()]
+            try:
+                lnodesarea = self.s2kDatabase["Objects And Elements - Areas".upper]
+            except:
+                logging.error("You musr export table 'Objects And Elements - Areas' from SAp2000")
+        except:
+            pass
+
         try:
             sect = self.s2kDatabase['Frame Props 01 - General'.upper()]
         except:
@@ -343,7 +370,6 @@ class sap2000_handler:
         groups = self.s2kDatabase['Groups 1 - Definitions'.upper()]
         groupsassign = self.s2kDatabase['Groups 2 - Assignments'.upper()]
         
-
         logging.basicConfig(level=logging.DEBUG)
         logging.info("Writing GMSH file: %s", filename)
             
@@ -357,7 +383,6 @@ class sap2000_handler:
         joints.set_index('Joint', inplace=True)
         joints['coord'] = joints.apply(lambda x: np.array([x['XorR'], x['Y'], x['Z']]),axis=1) 
         lst1 = joints['coord'].explode().to_list()
-
 
         line = gmsh.model.addDiscreteEntity(POINT)
         gmsh.model.mesh.addNodes(POINT, line, ijoins, lst1)
@@ -384,11 +409,18 @@ class sap2000_handler:
         areas['Node2'] = joints.loc[areas['Joint2'].values, 'JoinTag'].values
         areas['Node3'] = joints.loc[areas['Joint3'].values, 'JoinTag'].values
         areas['Node4'] = areas.apply(lambda row: 'nan' if row['Joint4'] == 'nan' else joints.at[row['Joint4'], 'JoinTag'], axis=1)
+
         areas['Nodes'] = areas.apply(lambda x:[x['Node1'], x['Node2'], x['Node3']] 
                 if x['Joint4'] == 'nan' else [x['Node1'], x['Node2'], x['Node3'], x['Node4']], axis=1)
-
+        
         #areas['Nodes'] = areas[["Node1", "Node2", "Node3"]].values.tolist()
-        #areas['Nodes'] = areas.loc[areas['Joint4'] == 'nan', ["Node1", "Node2", "Node3"]].values.tolist()
+        # areas3 = areas.loc[areas['Joint4'] == 'nan']
+        # areas3['Nodes'] = areas3[["Node1", "Node2", "Node3"]].values.tolist()
+        # areas.loc[areas['Joint4'] == 'nan'] = areas3['Nodes'].values
+        # areas3 = areas.loc[areas['Joint4'] != 'nan']
+        # areas3['Nodes'] = areas3[["Node1", "Node2", "Node3", 'Node4']].values.tolist()
+        # areas.loc[areas['Joint4'] == 'nan'] = areas3['Nodes'].values
+
         #areas['Nodes'] = areas.apply(lambda x: np.array([joints.at[x['Joint1'], "JoinTag"], x['Joint2'], x['Joint3']]),axis=1) 
         areas.apply(
             lambda x: rename_area_nodes(x['ElemTag'],x["Nodes"]), 
@@ -424,6 +456,22 @@ class sap2000_handler:
             lst = areas.loc[areas['Section']==sec]['ElemTag'].values
             gmsh.model.addPhysicalGroup(SURFACE, lst, name="Area section: " + sec)
 
+        logging.debug("Processing FEM meshn...")
+        
+        if not automesh:
+            gmsh.model.add("FEM mesh")
+            # prepares the GMSH model
+            njoins = coordsauto.shape[0]
+            logging.info(f"Processing nodes ({njoins})...")
+#            coordsauto.insert(0, "JoinTag", np.arange(1, njoins+1), False)
+#            coordsauto['Joint'] = coordsauto['Joint'].astype(str)
+#            coordsauto['Joint2'] = coordsauto.loc[:, 'Joint']
+#            coordsauto.set_index('Joint', inplace=True)
+#            coordsauto['coord'] = coordsauto.apply(lambda x: np.array([x['XorR'], x['Y'], x['Z']]),axis=1) 
+#            lst1 = coordsauto['coord'].explode().to_list()
+            point = gmsh.model.addDiscreteEntity(POINT)
+            gmsh.model.mesh.addNodes(POINT, point, ijoins, lst1)
+
         logging.debug("Processing GMSH intialization...")
 
         gmsh.option.setNumber("Mesh.SaveAll", 1)
@@ -432,7 +480,7 @@ class sap2000_handler:
         gmsh.option.setNumber("Mesh.LineWidth", 5)
         gmsh.option.setNumber("Mesh.ColorCarousel", 2)
 
-        size = gmsh.model.getBoundingBox(-1, -1)
+        #size = gmsh.model.getBoundingBox(-1, -1)
         gmsh.write("title.msh")
 
         # Launch the GUI to see the results:
