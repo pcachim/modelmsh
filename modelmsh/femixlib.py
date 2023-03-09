@@ -64,7 +64,7 @@ def prefemix(filename: str):
     return n
 
 
-def femix(filename: str, soalg: str='d', randsn: float=1.0e-6):
+def femix2(filename: str, soalg: str='d', randsn: float=1.0e-6):
     """_summary_
 
     Args:
@@ -178,8 +178,7 @@ def posfemix(filename: str, **kwargs):
     return n
 
 
-
-def femixpy(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
+def femix(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
     """Reads the input file and solves the system of linear equations
 
     Args:

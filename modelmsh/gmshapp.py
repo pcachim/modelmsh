@@ -7,7 +7,7 @@ from tkinter import filedialog, Tk
 # finite element solver; in particular, it shows how boundary conditions,
 # material properties, etc., can be specified on parts of the model.
 
-def gmsh_app():
+def gmshApp():
 		gmsh.initialize(sys.argv)
 
 		if len(sys.argv) > 1:
@@ -237,4 +237,4 @@ def gmsh_app():
 
 
 if __name__ == "__main__":
-	gmsh_app()
+	gmshApp()

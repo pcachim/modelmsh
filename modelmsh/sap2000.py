@@ -99,6 +99,7 @@ def rename_area_nodes(elem, nodes):
         gmsh.model.mesh.addElementsByType(surf, QUADRANGLE4, [elem], nodes)
     return
 
+
 def rename_elem_nodes(joints, elem, node1, node2):
     surf = gmsh.model.addDiscreteEntity(LINE)
     lst =  [joints.at[node1, "JoinTag"],

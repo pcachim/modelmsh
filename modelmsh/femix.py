@@ -232,7 +232,7 @@ class femix_handler:
         #filename = os.path.join(os.getcwd(), 'scripts/tri')
         if filename.endswith("_gl.dat"):
             filename = filename[:len(filename) - 7]
-        femixlib.femixpy(filename, 'd', 1.0e-6)
+        femixlib.femix(filename, 'd', 1.0e-6)
 
 
     def posprocess(self, filename: str, options: list):

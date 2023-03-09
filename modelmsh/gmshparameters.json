@@ -15,14 +15,22 @@
         "step":0.1
     },
     {
+        "type":"number",
+        "name":"ONELAB Context/Curve Template/2Value",
+        "values":[20],
+        "min":0,
+        "max":100,
+        "step":0.1
+    },
+    {
         "type":"string",
-        "name":"ONELAB Context/Curve Template/2Action",
+        "name":"ONELAB Context/Curve Template/3Action",
         "values":["Some action on ONELAB Context/Curve Template"],
         "attributes":{"Macro":"Action", "Aspect":"MiddleButton"}
     },
     {
         "type":"string",
-        "name":"ONELAB Context/Curve Template/3Other action",
+        "name":"ONELAB Context/Curve Template/4Other action",
         "values":["Some other action on ONELAB Context/Curve Template"],
         "attributes":{"Macro":"Action", "Aspect":"RightReturnButton"}
     },
@@ -64,6 +72,12 @@
         "type":"string",
         "name":"ONELAB/Button",
         "values":["Run", "run"],
+        "visible":false
+    },
+    {
+        "type":"string",
+        "name":"ONELAB/Button",
+        "values":["Ofelia", "ofelia"],
         "visible":false
     },
     {
