@@ -7,6 +7,7 @@ import pathlib
 import sys
 import logging
 import timeit
+from . import femixlib
 
 
 def gmsh2femix(code: int, lnods: list):
@@ -226,7 +227,25 @@ class femix_handler:
 
         gmsh.finalize()
 
-    def run(self, filename: str):
+
+    def run(self, filename: str): 
+        #filename = os.path.join(os.getcwd(), 'scripts/tri')
+        if filename.endswith("_gl.dat"):
+            filename = filename[:len(filename) - 7]
+        femixlib.femixpy(filename, 'd', 1.0e-6)
+
+
+    def posprocess(self, filename: str, options: list):
+        if filename.endswith("_gl.dat"):
+            filename = filename[:len(filename) - 7]
+        for option in options:
+            #option = {'lcaco': 'l', 'cstyn': 'y', 'stnod': 'a', 'csryn': 'n', 'ksres': 1}
+            femixlib.posfemix(filename, **option)
+            # femixlib.posfemix(filename, option, lcaco='l', cstyn='y', stnod='a', csryn='n', ksres=1)
+        return
+
+
+    def rungmsh(self, filename: str):
         gmsh.initialize()
 
         # Copied from discrete.py...

@@ -190,7 +190,7 @@ class sap2000_handler:
 
 
     def write_msh(self, filename: str):
-        """Writes a GMSH mesh file
+        """Writes a GMSH mesh file (depracated)
 
         Args:
             filename (str): the name of the file to be written
@@ -277,33 +277,9 @@ class sap2000_handler:
         gmsh.model.mesh.addElementsByType(line, FRAME2, elemlist, elemnodes)
         gmsh.model.mesh.addElements(SURFACE, surf, [QUADRANGLE4, TRIANGLE3], arealist, areanodes)
 
-        sect['SectionName'] = sect['SectionName'].map(str) 
-        sect.set_index('SectionName', inplace=False)
-        seclist = {}
-        nsects = sect.shape[0]
-        i = 0
-        for sec in sect.iterrows():
-            secname = sec[1]['SectionName'].upper()
-            seclist[secname] = [++i, secname]
-
-        sectaglist = [[] for _ in range(nsects)]
-        
-        sectassign['Frame'] = sectassign['Frame'].map(str) 
-        df_dict = sectassign.to_dict('records')
-        sectassign.set_index('Frame', inplace=False)
-        for row in df_dict:
-            # sec = row['AnalSect'].upper()
-            # ielem = str(row['Frame'])
-            newielem = elems.at[str(row['Frame']), 'ElemTag']
-            sectaglist[seclist[row['AnalSect'].upper()][0]].append(newielem)
-
-        for sec in seclist:
-            gmsh.model.addPhysicalGroup(LINE, sectaglist[seclist[sec][0]], name=seclist[sec][1])
-        # gmsh.model.addPhysicalGroup(LINE, [line], name="Material1")
-        # gmsh.model.addPhysicalGroup(SURFACE, [surf], name="Material2")
 
         gmsh.option.setNumber("Mesh.SaveAll", 1)
-        gmsh.write("title.msh")
+        gmsh.write(filename)
 
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv:
@@ -314,16 +290,17 @@ class sap2000_handler:
         return
 
 
-    def write_msh_2(self, filename: str):
-        """Writes a GMSH mesh file
+    def open_gmsh(self, filename: str):
+        """Writes a GMSH mesh file and opens it in GMSH
 
         Args:
             filename (str): the name of the file to be written
         """
-        automesh = False
+        #automesh = False
 
         # initialize gmsh
         gmsh.initialize(sys.argv)
+        gmsh.model.setFileName(pathlib.Path(filename).name)
         
         try:
             title = self.s2kDatabase['PROJECT INFORMATION'].at['Project Name', 0]
@@ -335,28 +312,28 @@ class sap2000_handler:
             joints = self.s2kDatabase['Joint Coordinates'.upper()]
         except:
             logging.error("You musr export table 'Joint Coordinates' from SAp2000")
-        try:
-            coordsauto = self.s2kDatabase["Objects And Elements - Joints".upper]
-            automesh = True
-        except:
-            coordsauto = joints
-            logging.error("You musr export table 'Objects And Elements - Jooints' from SAp2000")
+        # try:
+        #     coordsauto = self.s2kDatabase["Objects And Elements - Joints".upper]
+        #     #automesh = True
+        # except:
+        #     coordsauto = joints
+        #     logging.error("You musr export table 'Objects And Elements - Joints' from SAp2000")
 
         try:
             elems = self.s2kDatabase['Connectivity - Frame'.upper()]
-            try:
-                lnodesframe = self.s2kDatabase["Objects And Elements - Frames".upper]
-            except:
-                logging.error("You musr export table 'Objects And Elements - Frames' from SAp2000")
+            # try:
+            #     lnodesframe = self.s2kDatabase["Objects And Elements - Frames".upper]
+            # except:
+            #     logging.error("You musr export table 'Objects And Elements - Frames' from SAp2000")
         except:
             pass
 
         try:
             areas = self.s2kDatabase['Connectivity - Area'.upper()]
-            try:
-                lnodesarea = self.s2kDatabase["Objects And Elements - Areas".upper]
-            except:
-                logging.error("You musr export table 'Objects And Elements - Areas' from SAp2000")
+            # try:
+            #     lnodesarea = self.s2kDatabase["Objects And Elements - Areas".upper]
+            # except:
+            #     logging.error("You musr export table 'Objects And Elements - Areas' from SAp2000")
         except:
             pass
 
@@ -378,8 +355,8 @@ class sap2000_handler:
         logging.info(f"Processing nodes ({njoins})...")
         ijoins = np.arange(1, njoins+1)
         joints.insert(0, "JoinTag", ijoins, False)
-        joints['Joint'] = joints['Joint'].map(str)
-        joints['Joint2'] = joints.loc[:, 'Joint']
+        joints['Joint'] = joints['Joint'].astype(str)
+        joints['Joint2'] = joints['Joint'] #joints.loc[:, 'Joint']
         joints.set_index('Joint', inplace=True)
         joints['coord'] = joints.apply(lambda x: np.array([x['XorR'], x['Y'], x['Z']]),axis=1) 
         lst1 = joints['coord'].explode().to_list()
@@ -402,7 +379,8 @@ class sap2000_handler:
 
         nelems = areas.shape[0]
         logging.info(f"Processing ares ({nelems})...")
-        areas.insert(1, "ElemTag", np.arange(1, nelems+1), False)
+        #areas.insert(1, "ElemTag", np.arange(1, nelems+1), False)
+        areas["ElemTag"] = np.arange(1, nelems+1)
         areas.insert(2, "Section", areaassign['Section'].values, False)
         areas[['Area','Joint1','Joint2','Joint3','Joint4']] = areas[['Area','Joint1','Joint2','Joint3','Joint4']].astype(str)
         areas['Node1'] = joints.loc[areas['Joint1'].values, 'JoinTag'].values
@@ -420,6 +398,9 @@ class sap2000_handler:
         # areas3 = areas.loc[areas['Joint4'] != 'nan']
         # areas3['Nodes'] = areas3[["Node1", "Node2", "Node3", 'Node4']].values.tolist()
         # areas.loc[areas['Joint4'] == 'nan'] = areas3['Nodes'].values
+        logging.debug(f"Execution time: {round((timeit.default_timer() - starttime)*1000,3)} ms")
+        
+        starttime = timeit.default_timer()
 
         #areas['Nodes'] = areas.apply(lambda x: np.array([joints.at[x['Joint1'], "JoinTag"], x['Joint2'], x['Joint3']]),axis=1) 
         areas.apply(
@@ -427,7 +408,7 @@ class sap2000_handler:
             axis=1
             )
 
-        logging.debug(f"Execution time: {round((timeit.default_timer() - starttime)*1000,3)} ms")
+        logging.debug(f"Execution time for adding to model: {round((timeit.default_timer() - starttime)*1000,3)} ms")
         logging.debug("Processing groups...")
 
         for row in groups.itertuples():
@@ -456,9 +437,9 @@ class sap2000_handler:
             lst = areas.loc[areas['Section']==sec]['ElemTag'].values
             gmsh.model.addPhysicalGroup(SURFACE, lst, name="Area section: " + sec)
 
-        logging.debug("Processing FEM meshn...")
+        logging.debug("Processing FEM mesh...")
         
-        if not automesh:
+        if False:
             gmsh.model.add("FEM mesh")
             # prepares the GMSH model
             njoins = coordsauto.shape[0]
@@ -473,6 +454,8 @@ class sap2000_handler:
             gmsh.model.mesh.addNodes(POINT, point, ijoins, lst1)
 
         logging.debug("Processing GMSH intialization...")
+        
+        gmsh.model.setAttribute("Materials", ["Concrete:Stiff:30000000",  "Concrete:Poiss:0.2", "Steel:Stiff:20000000", "Steel:Poiss:0.3"])
 
         gmsh.option.setNumber("Mesh.SaveAll", 1)
         gmsh.option.setNumber("Mesh.Lines", 1)
@@ -481,7 +464,7 @@ class sap2000_handler:
         gmsh.option.setNumber("Mesh.ColorCarousel", 2)
 
         #size = gmsh.model.getBoundingBox(-1, -1)
-        gmsh.write("title.msh")
+        gmsh.write(filename)
 
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv:
