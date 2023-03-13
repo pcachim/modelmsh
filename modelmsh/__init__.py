@@ -13,6 +13,6 @@ from . import sap2000
 from . import femix
 from . import mesh
 from .sap2000 import sap2000_handler
-from .femix import femix_handler, read_pva, read_s3dx, run, posprocess
+from .femix import femix_handler
 from .mesh import mesh_handler
 from .gmshapp import gmshApp

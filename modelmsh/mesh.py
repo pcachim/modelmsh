@@ -301,7 +301,7 @@ class mesh_handler:
         return
 
     def to_femix(self, mesh_file: str):
-        """Writes a femix _gl.dat mesh file
+        """Writes a femix .gldat mesh file
 
         Args:
             mesh_file (str): the name of the file to be written
@@ -309,8 +309,8 @@ class mesh_handler:
         ndime = 3
         
         path = Path(mesh_file)
-        if path.suffix.lower() != ".dat":
-            mesh_file = path.with_suffix('').resolve() + "_gl.dat"
+        if path.suffix.lower() != ".gldat":
+            mesh_file = path.with_suffix('').resolve() + ".gldat"
 
         with open(mesh_file, 'w') as file:
 

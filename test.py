@@ -5,12 +5,12 @@ import pathlib
 
 logging.basicConfig(level=logging.DEBUG)
 
-fname = os.path.join( os.getcwd(), "tests/x4_t1_1.msh")
-path = pathlib.Path(fname)
-mesh = msh.mesh_handler()
-mesh.import_mesh(fname)
-fname = os.path.join(path.parent, path.stem + "_gl.dat")
-mesh.to_femix(fname)
+# fname = os.path.join( os.getcwd(), "tests/x4_t1_1.msh")
+# path = pathlib.Path(fname)
+# mesh = msh.mesh_handler()
+# mesh.import_mesh(fname)
+# fname = os.path.join(path.parent, path.stem + ".gldat")
+# mesh.to_femix(fname)
 
 # femix = msh.femix_handler()
 # femix.run(fname)
@@ -19,13 +19,12 @@ mesh.to_femix(fname)
 
 # femix.read_msh(fname)
 
-s2000 = msh.sap2000_handler()
 fname = os.path.join( os.getcwd(), "tests/test.s2k")
-s2000.read_s2k(fname)
+s2000 = msh.sap2000_handler(fname)
 # fname = os.path.join( os.getcwd(), "test.xlsx")
 # s2000.read_excel(fname, 'pandas')
 fname = os.path.join( os.getcwd(), "tests/test-1.msh")
-s2000.open_gmsh(fname)
+s2000.to_msh_and_open(entities='sections', physicals='sections')
 
 # s2000 = msh.sap2000_handler()
 # fname = os.path.join( os.getcwd(), "tests/test.s2k")

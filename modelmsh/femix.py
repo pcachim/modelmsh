@@ -230,14 +230,14 @@ class femix_handler:
 
     def run(self, filename: str): 
         #filename = os.path.join(os.getcwd(), 'scripts/tri')
-        if filename.endswith("_gl.dat"):
-            filename = filename[:len(filename) - 7]
+        if filename.endswith(".gldat"):
+            filename = filename[:len(filename) - 6]
         femixlib.femix(filename, 'd', 1.0e-6)
 
 
     def posprocess(self, filename: str, options: list):
-        if filename.endswith("_gl.dat"):
-            filename = filename[:len(filename) - 7]
+        if filename.endswith(".gldat"):
+            filename = filename[:len(filename) - 6]
         for option in options:
             #option = {'lcaco': 'l', 'cstyn': 'y', 'stnod': 'a', 'csryn': 'n', 'ksres': 1}
             femixlib.posfemix(filename, **option)
