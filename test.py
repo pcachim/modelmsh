@@ -21,9 +21,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 fname = os.path.join( os.getcwd(), "tests/test.s2k")
 s2000 = msh.sap2000_handler(fname)
+s2000.to_femix()
 # fname = os.path.join( os.getcwd(), "test.xlsx")
 # s2000.read_excel(fname, 'pandas')
-fname = os.path.join( os.getcwd(), "tests/test-1.msh")
 s2000.to_msh_and_open(entities='sections', physicals='sections')
 
 # s2000 = msh.sap2000_handler()
