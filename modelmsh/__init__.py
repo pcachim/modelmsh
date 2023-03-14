@@ -16,5 +16,6 @@ from .sap2000 import sap2000_handler
 from .femix import femix_handler
 from .mesh import mesh_handler
 from .gmshapp import gmshApp
+from .femixlib import femSolver, femPostprocess
 
 

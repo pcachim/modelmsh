@@ -51,7 +51,7 @@ posfemixlib = libfemixpy.posfemixlib
 posfemixlib.restype = int
 
 
-def prefemix(filename: str):
+def prefemix2(filename: str):
     """_summary_
 
     Args:
@@ -117,7 +117,7 @@ def posfemix2(filename: str, code: int=1, lcaco: str='l', cstyn: str='y',
     return n
 
 
-def posfemix(filename: str, **kwargs):
+def femPostprocess(filename: str, **kwargs):
     """_summary_
 
     Args:
@@ -178,11 +178,11 @@ def posfemix(filename: str, **kwargs):
     return n
 
 
-def femix(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
+def femSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
     """Reads the input file and solves the system of linear equations
 
     Args:
-        filename (str): the name of the file to be read
+        filename (str): the name of the file to be read without extension
         soalg (str, optional): the algorithm used to solve the sysytem of linear equations, 'd' direct, 'i' iterative. Defaults to 'd'.
         randsn (float, optional): converge criteria to stop the iterative solver. Defaults to 1.0e-6.
 

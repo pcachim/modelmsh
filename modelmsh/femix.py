@@ -240,7 +240,7 @@ class femix_handler:
             filename = filename[:len(filename) - 6]
         for option in options:
             #option = {'lcaco': 'l', 'cstyn': 'y', 'stnod': 'a', 'csryn': 'n', 'ksres': 1}
-            femixlib.posfemix(filename, **option)
+            femixlib.femPostprocess(filename, **option)
             # femixlib.posfemix(filename, option, lcaco='l', cstyn='y', stnod='a', csryn='n', ksres=1)
         return
 
