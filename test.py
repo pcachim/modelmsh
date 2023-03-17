@@ -19,6 +19,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 # femix.read_msh(fname)
 
+slab = msh.Slab()
+
 fname = os.path.join( os.getcwd(), "tests/test.s2k")
 s2000 = msh.sap2000_handler(fname)
 s2000.to_femix()

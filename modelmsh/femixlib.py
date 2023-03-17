@@ -5,19 +5,20 @@ from ctypes import c_double, c_int, CDLL
 import os
 
  
-ME_S3D =  1 # /*    1) _me.s3d file with the undeformed mesh                       */
-GE_S3D =  2 # /*    2) _ge.s3d file with the geometric data                        */
-GL_LPT =  3 # /*    3) _gl.lpt file with the geometry and loads                    */
-RS_LPT =  4 # /*    4) _rs.lpt file with the results                               */
-DM_S3D =  5 # /*    5) _dm.s3d file with the deformed mesh                         */
-DI_PVA =  6 # /*    6) _di.pva file with the nodal displacements                   */
-PS_S3D =  7 # /*    7) _ps.s3d file with the principal stresses                    */
-ST_PVA =  8 # /*    8) _st.pva file with the nodal stresses                        */
-SG_S3D =  9 # /*    9) _sg.s3d file with the stress graphics                       */
-SR_PVA = 10 # /*   10) _sr.pva file with the nodal reinforcement.                  */
-RG_S3D = 11 # /*   11) _rg.s3d file with the reinforcement graphics.               */
-RS_CSV = 12 # /*   12) _rs.csv file with the results.                              */
-ME_S3DX = 13 # /*  13) _me.s3dx file with the results.                              */
+ME_S3D  =  1 # /*    1) _me.s3d file with the undeformed mesh.                      */
+GE_S3D  =  2 # /*    2) _ge.s3d file with the geometric data.                       */
+GL_LPT  =  3 # /*    3) _gl.lpt file with the geometry and loads.                   */
+RS_LPT  =  4 # /*    4) _rs.lpt file with the results.                              */
+DM_S3D  =  5 # /*    5) _dm.s3d file with the deformed mesh.                        */
+DI_PVA  =  6 # /*    6) _di.pva file with the nodal displacements.                  */
+PS_S3D  =  7 # /*    7) _ps.s3d file with the principal stresses.                   */
+ST_PVA  =  8 # /*    8) _st.pva file with the nodal stresses.                       */
+SG_S3D  =  9 # /*    9) _sg.s3d file with the stress graphics.                      */
+SR_PVA  = 10 # /*   10) _sr.pva file with the nodal reinforcement.                  */
+RG_S3D  = 11 # /*   11) _rg.s3d file with the reinforcement graphics.               */
+RS_CSV  = 12 # /*   12) _rs.csv file with the results.                              */
+ME_S3DX = 13 # /*   13) _me.s3dx file with the results.                             */
+DM_S3DX = 14 # /*   14) _DM.s3dx file with the deformed mesh.                       */
 
 BOTO_XX = 1
 BOTO_YY = 2

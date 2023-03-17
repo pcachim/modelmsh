@@ -196,7 +196,7 @@ class femix_handler:
 
         gmsh.write(filename + ".msh")
         gmsh.finalize()
-        return
+        return ndims, types, elems, lnode, nodes, coord, specs
 
 
     def read_msh(self, filename: str):
@@ -232,7 +232,7 @@ class femix_handler:
         #filename = os.path.join(os.getcwd(), 'scripts/tri')
         if filename.endswith(".gldat"):
             filename = filename[:len(filename) - 6]
-        femixlib.femix(filename, 'd', 1.0e-6)
+        femixlib.femSolver(filename, 'd', 1.0e-6)
 
 
     def posprocess(self, filename: str, options: list):
