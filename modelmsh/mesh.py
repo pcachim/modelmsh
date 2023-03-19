@@ -299,7 +299,7 @@ class mesh_handler:
         df.to_json("mesh.json")
         return
 
-    def to_femix(self, mesh_file: str):
+    def to_gldat(self, mesh_file: str):
         """Writes a femix .gldat mesh file
 
         Args:

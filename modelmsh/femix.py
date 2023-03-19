@@ -7,7 +7,7 @@ import pathlib
 import sys
 import logging
 import timeit
-from . import femixlib
+from . import ofemlib
 
 
 def gmsh2femix(code: int, lnods: list):
@@ -232,7 +232,7 @@ class femix_handler:
         #filename = os.path.join(os.getcwd(), 'scripts/tri')
         if filename.endswith(".gldat"):
             filename = filename[:len(filename) - 6]
-        femixlib.femSolver(filename, 'd', 1.0e-6)
+        ofemlib.ofemSolver(filename, 'd', 1.0e-6)
 
 
     def posprocess(self, filename: str, options: list):
@@ -240,7 +240,7 @@ class femix_handler:
             filename = filename[:len(filename) - 6]
         for option in options:
             #option = {'lcaco': 'l', 'cstyn': 'y', 'stnod': 'a', 'csryn': 'n', 'ksres': 1}
-            femixlib.femPostprocess(filename, **option)
+            ofemlib.ofemPostprocess(filename, **option)
             # femixlib.posfemix(filename, option, lcaco='l', cstyn='y', stnod='a', csryn='n', ksres=1)
         return
 

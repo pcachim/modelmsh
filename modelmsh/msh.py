@@ -7,7 +7,7 @@ import pathlib
 import sys
 import logging
 import timeit
-from . import femixlib
+from . import ofemlib
 
 
 class msh_handler:

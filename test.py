@@ -1,7 +1,9 @@
 import modelmsh as msh
+import math
 import os
 import logging
 import pathlib
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -19,7 +21,19 @@ logging.basicConfig(level=logging.DEBUG)
 
 # femix.read_msh(fname)
 
+fname = os.path.join( os.getcwd(), "tests/demo.gldat")
 slab = msh.Slab()
+#slab.addGeometry(msh.meshstruct.CIRCULAR_QUARTER, (1, 1, 0), 3, 30*math.pi/180)
+#slab.addGeometry(msh.meshstruct.CIRCULAR_SEGMENT, (1, 1, 0), 3, 30*math.pi/180, 70*math.pi/180)
+#slab.addGeometry(msh.meshstruct.CIRCULAR, (1, 1, 0), 3)
+mat = {'E': 30000000, 'nu': 0.3, 'rho': 25.0, 'alpha': 1.0e-5}
+slab.addGeometry(msh.meshstruct.POLYGON, [(0, 0, 0), (10, 0, 0), (10, 5, 0), (0, 5, 0)],
+                    boundary=[1, 0, 1, -1], material=mat, thick=0.25, load=-10.0)
+
+slab.to_gldat(fname)
+slab.run()
+#slab.addParameters(boundary=[1, 1, -1, 0], material=2)
+
 
 fname = os.path.join( os.getcwd(), "tests/test.s2k")
 s2000 = msh.sap2000_handler(fname)
