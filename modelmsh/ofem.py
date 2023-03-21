@@ -12,16 +12,22 @@ from numpy.typing import ArrayLike
 from pathlib import Path
 from ._common import *
 
-class mesh_handler:
+class ofem_handler:
 
     def __init__(self):
-        self._points: pd.DataFrame = pd.DataFrame(columns=['tag', 'x', 'y', 'z'])
-        self._elements: pd.DataFrame = pd.DataFrame(columns=['tag', 'type', 'nnodes', 'nodes', 'section', 'group'])
+        self._points: pd.DataFrame = pd.DataFrame(columns=['tag', 'numtag', 'x', 'y', 'z'])
+        self._elements: pd.DataFrame = pd.DataFrame(columns=['tag', 'numtag', 'type', 'nnodes', 'nodes', 'section', 'group'])
         self._info: dict = {}
         self._specialnodes: pd.DataFrame  = pd.DataFrame(columns=['tag', 'node', 'fixed'])
         self._types: list = []
-        self._sections: list = []
+        self._framesections: list = []
+        self._areasections: list = []
         self._materials: list = []
+        self._pointloads: list = []
+        self._frameloads: list = []
+        self._arealoads: list = []
+        self._solidloads: list = []
+        self._combinations: list = []
         self_gmsh = None
 
     def read_mesh(self, mesh_file):

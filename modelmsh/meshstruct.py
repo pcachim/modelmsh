@@ -9,6 +9,7 @@ import pathlib
 from . import ofemlib
 from ._common import *
 
+# slabs
 RECTANGULAR = 1
 TRIANGULAR = 2
 CIRCULAR = 3
@@ -17,9 +18,20 @@ CIRCULAR_WITH_HOLE = 5
 CIRCULAR_SEGMENT = 6
 POLYGON = 7
 
+# beams
+LINEAR2D = 101
+CURVED2D = 102
+SPATIAL3D = 103
+
+# supports
 FREE = -1
-HINGED = 0
-FIXED = 1
+HINGED = 0 # 1110
+FIXED = 1 # 1111
+HORIZONTAL = 1100
+VERTICAL = 1010
+ROTATION = 1001
+HOR_ROT = 1101
+VER_ROT = 1011
 
 
 def rot(point1: tuple, point2: tuple, angle: float) -> tuple:
@@ -157,6 +169,65 @@ def Polygon(points: tuple, msize: float = 0.3):
     gmsh.model.mesh.generate(2)
     return area
 
+
+def LinearBeam(points: tuple, msize: float = 0.3):
+    pt = []
+    ln = []
+    lenb = 0
+    k = gmsh.model.geo.addPoint(0.0, 0.0, 0.0, msize)
+    pt.append(k)
+    for i in range(len(points)):
+        lenb += points[i]
+        k = gmsh.model.geo.addPoint(lenb, 0.0, 0.0, msize)
+        pt.append(k)
+
+    for i in range(len(points)):
+        k = gmsh.model.geo.addLine(pt[i], pt[i+1])
+        ln.append(k)
+
+    gmsh.model.geo.synchronize()
+    # gmsh.option.setNumber("Mesh.ElementOrder", 2)
+    # gmsh.option.setNumber("Mesh.HighOrderOptimize", 2)
+    gmsh.model.mesh.generate(1)
+    return pt, ln
+
+
+def CurvedBeam(points: tuple, msize: float = 0.3):
+    pt = []
+    ln = []
+    len = 0
+    k = gmsh.model.geo.addPoint(0.0, 0.0, 0.0, msize)
+    pt.append(k)
+    for i in range(len(points)):
+        len += points[i]
+        k = gmsh.model.geo.addPoint(len, 0.0, 0.0, msize)
+        pt.append(k)
+
+    for i in range(len(points)):
+        k = gmsh.model.geo.addLine(pt[i], pt[i+1])
+        ln.append(k)
+
+    gmsh.model.geo.synchronize()
+    # gmsh.option.setNumber("Mesh.ElementOrder", 2)
+    # gmsh.option.setNumber("Mesh.HighOrderOptimize", 2)
+    gmsh.model.mesh.generate(1)
+    return pt, ln
+
+
+def SpatialBeam(points: tuple, msize: float = 0.3):
+    pt = []
+    ln = []
+    for i in range(len(points)):
+        k = gmsh.model.geo.addPoint(points[i][0], points[i][1], points[i][2], msize)
+        pt.append(k)
+    for i in range(len(points)-1):
+        k = gmsh.model.geo.addLine(pt[i], pt[i+1])
+        ln.append(k)
+    gmsh.model.geo.synchronize()
+    gmsh.model.mesh.generate(2)
+    return pt, ln
+
+
 class Slab:
     
     def __init__(self) -> None:
@@ -195,7 +266,7 @@ class Slab:
             msize = 0.3 if len(args) < 2 else args[1]
             Polygon(args[0], msize)
         else:
-            raise ValueError("Invalid geometry type.")
+            raise ValueError("Invalid slab geometry type.")
         
         if len(kwargs) > 0:
             self.addParameters(**kwargs)
@@ -211,7 +282,7 @@ class Slab:
                 bounds, _, _ = gmsh.model.mesh.getNodes(1, i+1, includeBoundary=True)
                 if b == FREE:
                     pass
-                elif b == FIXED or b == HINGED:
+                elif b in [FIXED, HINGED]:
                     for inode in bounds:
                         self.fixno[inode] = b if inode not in self.fixno else max(b, self.fixno[inode])
                 else:
@@ -375,36 +446,34 @@ class Slab:
         jobname = str(path.parent / path.stem)
         ofemlib.ofemSolver(jobname)
 
-        # for i in range(1, 4):
-        #     options = {'code': ofemlib.DI_PVA, 'csryn': 'n', 'ksres': 2, 'kdisp': i}
-        #     ofemlib.ofemPostprocess(jobname, **options)
-        #     df = ofemlib.ofemReadPVA(jobname + 'd_di.pva')
-            
-        #     t1 = gmsh.view.add("disp-" + str(i))
-        #     gmsh.view.addHomogeneousModelData(
-        #             t1, 0, "slab", "NodeData", df["point"].values, df['values'].values) 
+        options = {'csryn': 'n', 'ksres': 2}
+        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV]
+        ofemlib.ofemPostsolver(jobname, codes, **options)
 
-        options = {'code': ofemlib.DI_CSV, 'csryn': 'n', 'ksres': 2}
-        ofemlib.ofemPostprocess(jobname, **options)
-        df = ofemlib.ofemReadCSV(jobname + '_di.csv')
-            
+        # options = {'code': ofemlib.DI_CSV, 'csryn': 'n', 'ksres': 2}
+        # ofemlib.ofemPostprocess(jobname, **options)
+        # df = ofemlib.ofemReadCSV(jobname + '_di.csv')
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.DI_CSV)
+
         for i in range(1, 4):
             t1 = gmsh.view.add("disp-" + str(i))
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "slab", "NodeData", df["point"].values, df['disp-'+str(i)].values) 
 
-        options = {'code': ofemlib.AST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'a'}
-        ofemlib.ofemPostprocess(jobname, **options)
-        df = ofemlib.ofemReadCSV(jobname + '_avgst.csv')
+        # options = {'code': ofemlib.AST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'a'}
+        # ofemlib.ofemPostprocess(jobname, **options)
+        # df = ofemlib.ofemReadCSV(jobname + '_avgst.csv')
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.AST_CSV)
 
         for i in range(1, 6):
             t1 = gmsh.view.add("str_avg-" + str(i))
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "slab", "NodeData", df['point'].values, df['str-'+str(i)].values) 
 
-        options = {'code': ofemlib.EST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'e', 'kstre': i}
-        ofemlib.ofemPostprocess(jobname, **options)
-        df = ofemlib.ofemReadCSV(jobname + '_elnst.csv')
+        # options = {'code': ofemlib.EST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'e', 'kstre': i}
+        # ofemlib.ofemPostprocess(jobname, **options)
+        # df = ofemlib.ofemReadCSV(jobname + '_elnst.csv')
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
         unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
     
         for i in range(1, 6):
@@ -423,5 +492,71 @@ class Slab:
 
     
 class Beam:
-    pass
+    def __init__(self) -> None:
+        if not gmsh.is_initialized():
+            gmsh.initialize()
+        return
+    
+    def addGeometry(self, geometry: int, *args, **kwargs):
+        """_summary_
+
+        Args:
+            geometry (int): _description_
+
+        Raises:
+            ValueError: _description_
+        """
+
+        gmsh.model.add("beam")
+        if geometry == LINEAR2D:
+            msize = 0.3 if len(args) < 2 else args[1]
+            LinearBeam(args[0], msize)
+        elif geometry == CURVED2D:
+            msize = 0.3 if len(args) < 3 else args[2]
+            CurvedBeam(args[0], args[1], msize)
+        elif geometry == SPATIAL3D:
+            msize = 0.3 if len(args) < 3 else args[2]
+            SpatialBeam(args[0], msize)
+        else:
+            raise ValueError("Invalid beam geometry type.")
+        
+        if len(kwargs) > 0:
+            self.addParameters(**kwargs)
+        return
+
+    def addParameters(self, **kwargs):
+        self.fixno = {}
+        # if "boundary" in kwargs:
+        #     bounddary_condition = kwargs["boundary"]
+        #     # if len(bounddary_condition) != len (bounds):
+        #     #     raise ValueError("Invalid boundary conditions.")
+        #     for i, b in enumerate(bounddary_condition):
+        #         bounds, _, _ = gmsh.model.mesh.getNodes(1, i+1, includeBoundary=True)
+        #         if b == FREE:
+        #             pass
+        #         elif b == FIXED or b == HINGE, HORIZONTAL, VERTICAL, ROTATION, HOR_ROT, VER_ROTD:
+        #             for inode in bounds:
+        #                 self.fixno[inode] = b if inode not in self.fixno else max(b, self.fixno[inode])
+        #         else:
+        #             raise ValueError("Invalid boundary conditions.")
+
+        if "material" in kwargs:
+            self.material = kwargs["material"]
+
+        if "thick" in kwargs:
+            self.thick = kwargs["thick"]
+
+        if "load" in kwargs:
+            self.load = float(kwargs["load"])
+
+        return
+
+    def run(self):
+        # Launch the GUI to see the results:
+        if '-nopopup' not in sys.argv:
+            gmsh.fltk.run()
+
+        gmsh.finalize()
+
+
 

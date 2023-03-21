@@ -11,11 +11,11 @@ __version__ = "0.1.0"
 from . import gmshapp
 from . import sap2000
 from . import femix
-from . import mesh
+from . import ofem
 from . import meshstruct
 from .sap2000 import sap2000_handler
 from .femix import femix_handler
-from .mesh import mesh_handler
+from .ofem import ofem_handler
 from .msh import msh_handler
 from .gmshapp import gmshApp
 from .ofemlib import ofemSolver, ofemPostprocess

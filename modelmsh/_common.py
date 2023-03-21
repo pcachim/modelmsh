@@ -1,3 +1,24 @@
+ofem_meshio = {
+    "point": "vertex",
+    "line2": "line",
+    "line3": "line3",
+    "area3": "triangle",
+    "area4": "quad",
+    "area6": "triangle6", # not working
+    "area8": "quad8",
+    "area9": "quad9",
+    "area10": "triangle10", # not working
+    "solid4": "tetra",
+    "solid5": "pyramid", # not working
+    "solid6": "wedge", # not working
+    "solid8": "hexahedron",
+    "solid10": "tetra10", # not working
+    "solid14": "pyramid14", # not working
+    "solid18": "wedge18", # not working
+    "solid20": "hexahedron20",
+    "solid27": "hexahedron27"  # not working
+}
+meshio_ofem = {v: k for k, v in ofem_meshio.items()}
 
 meshio_gmsh = {
     "line": 1,
