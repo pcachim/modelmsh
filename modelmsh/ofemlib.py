@@ -59,6 +59,7 @@ posfemixlib.restype = int
 posofemlib = libfemixpy.posofemlib
 posofemlib.restype = int
 
+
 def compress_ofem(filename: str):
     """_summary_
 
@@ -70,11 +71,16 @@ def compress_ofem(filename: str):
     """""""""
     jobname = pathlib.Path(filename).stem
     with zipfile.ZipFile(filename + '.ofem', 'w') as ofemfile:
-        ofemfile.write(filename + '.gldat', arcname=jobname+".gldat", compress_type=zipfile.ZIP_DEFLATED)
-        ofemfile.write(filename + '_gl.bin', arcname=jobname+"_gl.bin")
-        ofemfile.write(filename + '_re.bin', arcname=jobname+"_re.bin")
-        ofemfile.write(filename + '_di.bin', arcname=jobname+"_di.bin")
-        ofemfile.write(filename + '_sd.bin', arcname=jobname+"_sd.bin")
+        if pathlib.Path(filename + '.gldat').exists():
+            ofemfile.write(filename + '.gldat', arcname=jobname+".gldat", compress_type=zipfile.ZIP_DEFLATED)
+        if pathlib.Path(filename + '_gl.bin').exists():
+            ofemfile.write(filename + '_gl.bin', arcname=jobname+"_gl.bin")
+        if pathlib.Path(filename + '_re.bin').exists():
+            ofemfile.write(filename + '_re.bin', arcname=jobname+"_re.bin")
+        if pathlib.Path(filename + '_di.bin').exists():
+            ofemfile.write(filename + '_di.bin', arcname=jobname+"_di.bin")
+        if pathlib.Path(filename + '_sd.bin').exists():
+            ofemfile.write(filename + '_sd.bin', arcname=jobname+"_sd.bin")
         if pathlib.Path(filename + '_st.bin').exists():
             ofemfile.write(filename + '_st.bin', arcname=jobname+"_st.bin", compress_type=zipfile.ZIP_DEFLATED)
         if pathlib.Path(filename + '_di.csv').exists():
@@ -83,6 +89,14 @@ def compress_ofem(filename: str):
             ofemfile.write(filename + '_avgst.csv', arcname=jobname+"_avgst.csv", compress_type=zipfile.ZIP_DEFLATED)
         if pathlib.Path(filename + '_elnst.csv').exists():
             ofemfile.write(filename + '_elnst.csv', arcname=jobname+"_elnst.csv", compress_type=zipfile.ZIP_DEFLATED)
+        if pathlib.Path(filename + '_gpstr.csv').exists():
+            ofemfile.write(filename + '_gpstr.csv', arcname=jobname+"_gpstr.csv", compress_type=zipfile.ZIP_DEFLATED)
+        if pathlib.Path(filename + '_react.csv').exists():
+            ofemfile.write(filename + '_react.csv', arcname=jobname+"_react.csv", compress_type=zipfile.ZIP_DEFLATED)
+        if pathlib.Path(filename + '_fixfo.csv').exists():
+            ofemfile.write(filename + '_fixfo.csv', arcname=jobname+"_fixfo.csv", compress_type=zipfile.ZIP_DEFLATED)
+        if pathlib.Path(filename + '_csv.info').exists():
+            ofemfile.write(filename + '_csv.info', arcname=jobname+"_csv.info", compress_type=zipfile.ZIP_DEFLATED)
 
     remove_ofem_files(filename)
     return
@@ -132,11 +146,16 @@ def get_csv_from_ofem(filename: str, code: int) -> pd.DataFrame:
 
 
 def remove_ofem_files(filename: str):
-    os.remove(filename + '.gldat')
-    os.remove(filename + '_gl.bin')
-    os.remove(filename + '_re.bin')
-    os.remove(filename + '_di.bin')
-    os.remove(filename + '_sd.bin')
+    if pathlib.Path(filename + '.gldat').exists():
+        os.remove(filename + '.gldat')
+    if pathlib.Path(filename + '_gl.bin').exists():
+        os.remove(filename + '_gl.bin')
+    if pathlib.Path(filename + '_re.bin').exists():
+        os.remove(filename + '_re.bin')
+    if pathlib.Path(filename + '_di.bin').exists():
+        os.remove(filename + '_di.bin')
+    if pathlib.Path(filename + '_sd.bin').exists():
+        os.remove(filename + '_sd.bin')
     if pathlib.Path(filename + '_st.bin').exists():
         os.remove(filename + '_st.bin')
     if pathlib.Path(filename + '_di.csv').exists():
@@ -145,9 +164,18 @@ def remove_ofem_files(filename: str):
         os.remove(filename + '_avgst.csv')
     if pathlib.Path(filename + '_elnst.csv').exists():
         os.remove(filename + '_elnst.csv')
+    if pathlib.Path(filename + '_gpstr.csv').exists():
+        os.remove(filename + '_gpstr.csv')
+    if pathlib.Path(filename + '_react.csv').exists():
+        os.remove(filename + '_react.csv')
+    if pathlib.Path(filename + '_fixfo.csv').exists():
+        os.remove(filename + '_fixfo.csv')
+    if pathlib.Path(filename + '_csv.info').exists():
+        os.remove(filename + '_csv.info')
     return
 
-def extract_ofem(filename: str):
+
+def extract_ofem_all(filename: str):
     path = pathlib.Path(filename + '.ofem')
     with zipfile.ZipFile(filename + '.ofem', 'r') as ofemfile:
         ofemfile.extractall(path.parent)
@@ -160,7 +188,7 @@ def extract_ofem_bin(filename: str):
         # listOfFileNames = ofemfile.namelist()
         for fileName in ofemfile.namelist():
             if fileName.endswith('.bin'):
-                ofemfile.extract(path.name, path.parent)
+                ofemfile.extract(fileName, path.parent)
     return
 
 
@@ -230,7 +258,7 @@ def posfemix2(filename: str, code: int=1, lcaco: str='l', cstyn: str='y',
     return n
 
 
-def ofemPostprocess(filename: str, **kwargs):
+def ofemResults(filename: str, codes: list, **kwargs):
     """_summary_
 
     Args:
@@ -240,91 +268,7 @@ def ofemPostprocess(filename: str, **kwargs):
         error code: 0 if no error, 1 if error
     """""""""
     
-    extract_ofem(filename)
-
-    if 'code' not in kwargs:
-        code = RS_LPT
-    else:
-        code = kwargs['code']
-    
-    if 'lcaco' not in kwargs:
-        lcaco = 'l'
-    else:
-        lcaco = kwargs['lcaco'].lower()
-        if lcaco not in ['l', 'c']: 
-            lcaco = 'l'
-            print("\n'lcaco' must be 'l'oad case or 'c'ombination. 'lcaco' changed to 'l")
-
-    if 'cstyn' not in kwargs:
-        cstyn = 'y'
-    else:
-        cstyn = kwargs['cstyn'].lower()
-        if cstyn not in ['y', 'n']: 
-            cstyn = 'n'
-            print("\n'cstyn' must be 'y'es or 'n'o. 'cstyn' changed to 'y")
-        
-    if 'stnod' not in kwargs:
-        stnod = 'a'
-    else:
-        stnod = kwargs['stnod'].lower()
-        if stnod not in ['a', 'e']: 
-            stnod = 'a'
-            print("\n'stnod' must be 'a'veraged or 'e'element. 'stnod' changed to 'a")
-        
-    if 'csryn' not in kwargs:
-        csryn = 'n'
-    else:
-        csryn = kwargs['csryn'].lower()
-        if csryn not in ['y', 'n']: 
-            csryn = 'n'
-            print("\n'csryn' must be 'y'es or 'n'o. 'csryn' changed to 'n")
-
-    if 'ksres' not in kwargs:
-        ksres = 1
-    else:
-        ksres = kwargs['ksres']
-        if ksres not in [1, 2]:
-            ksres = 1
-            print("\n'ksres' must be 1 or 2. 'ksres' changed to 1")
-
-    if 'kstre' not in kwargs:
-        kstre = 1
-    else:
-        kstre = kwargs['kstre']
-        if kstre not in [1, 2, 3, 4, 5, 6, 7, 8]:
-            kstre = 1
-            print("\n'kstre' must be between 1 and 8. 'ksres' changed to 1")
-
-    if 'kdisp' not in kwargs:
-        kdisp = 1
-    else:
-        kdisp = kwargs['kdisp']
-        if kdisp not in [1, 2, 3, 4, 5, 6]:
-            kdisp = 1
-            print("\n'kdisp' must be between 1 and 6. 'ksres' changed to 1")
-
-    n = posfemixlib(filename.encode(), c_int(code), 
-                    lcaco.encode(), cstyn.encode(), 
-                    stnod.encode(), csryn.encode(), 
-                    c_int(ksres), c_int(kstre), c_int(kdisp))
-
-    compress_ofem(filename)
-    #add_to_ofem(filename)
-
-    return n
-
-
-def ofemPostsolver(filename: str, codes: list, **kwargs):
-    """_summary_
-
-    Args:
-        filename (str): the name of the file to be read
-
-    Returns:
-        error code: 0 if no error, 1 if error
-    """""""""
-    
-    extract_ofem(filename)
+    extract_ofem_bin(filename)
 
     if 'lcaco' not in kwargs:
         lcaco = 'l'

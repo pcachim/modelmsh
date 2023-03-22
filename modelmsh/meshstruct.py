@@ -447,8 +447,8 @@ class Slab:
         ofemlib.ofemSolver(jobname)
 
         options = {'csryn': 'n', 'ksres': 2}
-        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV]
-        ofemlib.ofemPostsolver(jobname, codes, **options)
+        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV, ofemlib.RS_CSV]
+        ofemlib.ofemResults(jobname, codes, **options)
 
         # options = {'code': ofemlib.DI_CSV, 'csryn': 'n', 'ksres': 2}
         # ofemlib.ofemPostprocess(jobname, **options)

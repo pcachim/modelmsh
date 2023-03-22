@@ -18,5 +18,5 @@ from .femix import femix_handler
 from .ofem import ofem_handler
 from .msh import msh_handler
 from .gmshapp import gmshApp
-from .ofemlib import ofemSolver, ofemPostprocess
+from .ofemlib import ofemSolver, ofemResults
 from .meshstruct import Slab, Beam
