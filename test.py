@@ -30,7 +30,7 @@ slab.addGeometry(msh.meshstruct.CIRCULAR_QUARTER, (0, 0, 0), 3, 0*math.pi/180, 0
 #slab.addGeometry(msh.meshstruct.CIRCULAR, (1, 1, 0), 3)
 # slab.addGeometry(msh.meshstruct.POLYGON, [(0, 0, 0), (10, 0, 0), (10, 5, 0), (0, 5, 0)],
 #                     boundary=[1, 0, 1, -1], material=mat, thick=0.25, load=-10.0)
-slab.to_gldat(fname)
+slab.to_ofem(fname)
 slab.run()
 #slab.addParameters(boundary=[1, 1, -1, 0], material=2)
 # sec = {'name': 'sec', 'A': 0.5, 'I2': 0.3, 'I3': 0.3, 'It': 0.3, 'angle': 0.3}

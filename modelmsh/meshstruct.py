@@ -298,8 +298,8 @@ class Slab:
             self.load = float(kwargs["load"])
 
         return
-    
-    def to_gldat(self, mesh_file: str):
+
+    def to_ofem(self, mesh_file: str):
         """Writes a femix .gldat mesh file
 
         Args:
@@ -443,43 +443,72 @@ class Slab:
             file.write("\n")
             file.write("END_OF_FILE\n")
 
+        if path.suffix.lower() == ".gldat":
+            mesh_file = str(path.parent / path.stem) + ".cmdat"
+        
+        with open(mesh_file, 'w') as file:
+
+            file.write("### Main title of the problem\n")
+            file.write("Slab mesh\n")
+
+            file.write("### Number of combinations\n")
+            file.write("      2 # ncomb (number of combinations)\n\n")
+
+            file.write("### Combination title\n")
+            file.write("G\n")
+            file.write("### Combination number\n")
+            file.write("# combination n. (icomb) and number off load cases in combination (ncase)\n")
+            file.write("# icomb    lcase\n")
+            file.write("      1        1\n")
+            file.write("### Coeficients\n")
+            file.write("# load case number (icase) and load coefficient (vcoef)\n")
+            file.write("# icase      vcoef\n")
+            file.write("      1       1.00\n")
+            file.write("\n")
+
+            file.write("### Combination title\n")
+            file.write("1.35G\n")
+            file.write("### Combination number\n")
+            file.write("# combination n. (icomb) and number off load cases in combination (ncase)\n")
+            file.write("# icomb    lcase\n")
+            file.write("      2        1\n")
+            file.write("### Coeficients\n")
+            file.write("# load case number (icase) and load coefficient (vcoef)\n")
+            file.write("# icase      vcoef\n")
+            file.write("      1       1.35\n")
+            file.write("\n")
+
+            file.write("END_OF_FILE\n")
+
+
         jobname = str(path.parent / path.stem)
-        ofemlib.ofemSolver(jobname)
+        txt = ofemlib.ofemSolver(jobname)
 
-        options = {'csryn': 'n', 'ksres': 2}
-        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV, ofemlib.RS_CSV]
-        ofemlib.ofemResults(jobname, codes, **options)
+        options = {'csryn': 'n', 'ksres': 2, 'lcaco': 'c'}
+        # codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV, ofemlib.RS_CSV]
+        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV]
+        txt = ofemlib.ofemResults(jobname, codes, **options)
 
-        # options = {'code': ofemlib.DI_CSV, 'csryn': 'n', 'ksres': 2}
-        # ofemlib.ofemPostprocess(jobname, **options)
-        # df = ofemlib.ofemReadCSV(jobname + '_di.csv')
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.DI_CSV)
-
         for i in range(1, 4):
             t1 = gmsh.view.add("disp-" + str(i))
+            dff = df.loc[df['icomb'] == 1]
             gmsh.view.addHomogeneousModelData(
-                    t1, 0, "slab", "NodeData", df["point"].values, df['disp-'+str(i)].values) 
+                    t1, 0, "slab", "NodeData", dff["point"].values, dff['disp-'+str(i)].values) 
 
-        # options = {'code': ofemlib.AST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'a'}
-        # ofemlib.ofemPostprocess(jobname, **options)
-        # df = ofemlib.ofemReadCSV(jobname + '_avgst.csv')
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.AST_CSV)
-
         for i in range(1, 6):
             t1 = gmsh.view.add("str_avg-" + str(i))
+            dff = df.loc[df['icomb'] == 1]
             gmsh.view.addHomogeneousModelData(
-                    t1, 0, "slab", "NodeData", df['point'].values, df['str-'+str(i)].values) 
+                    t1, 0, "slab", "NodeData", dff['point'].values, dff['str-'+str(i)].values) 
 
-        # options = {'code': ofemlib.EST_CSV, 'csryn': 'n', 'ksres': 2, 'stnod': 'e', 'kstre': i}
-        # ofemlib.ofemPostprocess(jobname, **options)
-        # df = ofemlib.ofemReadCSV(jobname + '_elnst.csv')
-        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
-        unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
-    
-        for i in range(1, 6):
-            t1 = gmsh.view.add("str_eln-" + str(i))
-            gmsh.view.addHomogeneousModelData(
-                    t1, 0, "slab", "ElementNodeData", unique_values, df['str-'+str(i)].values) 
+        # df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
+        # unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
+        # for i in range(1, 6):
+        #     t1 = gmsh.view.add("str_eln-" + str(i))
+        #     gmsh.view.addHomogeneousModelData(
+        #             t1, 0, "slab", "ElementNodeData", unique_values, df['str-'+str(i)].values) 
 
         return
 
@@ -548,6 +577,192 @@ class Beam:
 
         if "load" in kwargs:
             self.load = float(kwargs["load"])
+
+        return
+
+    def to_ofem(self, mesh_file: str):
+        """Writes a femix .gldat mesh file
+
+        Args:
+            mesh_file (str): the name of the file to be written
+        """
+        ndime = 3
+        
+        path = pathlib.Path(mesh_file)
+        if path.suffix.lower() != ".gldat":
+            mesh_file = path.with_suffix('').resolve() + ".gldat"
+
+        nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes(1, includeBoundary=True)
+        coordlist = dict(zip(nodeTags, np.arange(len(nodeTags))))
+        # coords = np.array(nodeCoords).reshape(-1, 3)
+        # sorted_dict_by_keys = {key: coordlist[key] for key in sorted(coordlist)}
+        eleTypes, eleTags, eleNodes = gmsh.model.mesh.getElements(1)
+        elemlist = dict(zip(np.arange(1, 1+len(eleTags[0])), eleTags[0]))
+        self.nelems = len(eleTags[0])
+        self.npoints = len(nodeTags)
+        self.nmats = 1
+        self.nsections = 1
+        self.nspecnodes = len(self.fixno)
+        ndime = 3
+        props = meshio_femix[gmsh_meshio[eleTypes[0]]]
+        ntype = props[0]
+        nnode = props[1]
+
+        with open(mesh_file, 'w') as file:
+
+            file.write("### Main title of the problem\n")
+            file.write("Slab mesh\n")
+
+            file.write("\n")
+            file.write("### Main parameters\n")
+            file.write("%5d # nelem (n. of elements in the mesh)\n" % self.nelems)
+            file.write("%5d # npoin (n. of points in the mesh)\n" % self.npoints)
+            file.write("%5d # nvfix (n. of points with fixed degrees of freedom)\n" % self.nspecnodes)
+            file.write("%5d # ncase (n. of load cases)\n" % 1)
+            file.write("%5d # nselp (n. of sets of element parameters)\n" % 1)
+            file.write("%5d # nmats (n. of sets of material properties)\n" % 1)
+            file.write("%5d # nspen (n. of sets of element nodal properties)\n" % 1)
+            file.write("%5d # nmdim (n. of geometric dimensions)\n" % 2)
+            file.write("%5d # nnscs (n. of nodes with specified coordinate systems)\n" % 0)
+            file.write("%5d # nsscs (n. of sets of specified coordinate systems)\n" % 0)
+            file.write("%5d # nncod (n. of nodes with constrained d.o.f.)\n" % 0)
+            file.write("%5d # nnecc (n. of nodes with eccentric connections)\n" % 0)
+
+            file.write("\n")
+            file.write("### Sets of element parameters\n")
+            file.write("# iselp\n")
+            file.write(" %6d\n" % 1)
+            file.write("# element parameters\n")
+            file.write("%5d # ntype (n. of element type)\n" % 7)
+            file.write("%5d # nnode (n. of nodes per element)\n" % props[1])
+            file.write("%5d # ngauq (n. of Gaussian quadrature) (stiffness)\n" % props[3])
+            file.write("%5d # ngaus (n. of Gauss points in the formulation) (stiffness)\n" % props[4])
+            file.write("%5d # ngstq (n. of Gaussian quadrature) (stresses)\n" % props[5])
+            file.write("%5d # ngstr (n. of Gauss points in the formulation) (stresses)\n" % props[6])
+
+            file.write("\n")
+            file.write("### Sets of material properties\n")
+            file.write("### (Young modulus, Poisson ratio, mass/volume and thermic coeff.\n")
+            file.write("# imats         young        poiss        dense        alpha\n")
+            file.write("  %5d  %16.3f %16.3f %16.3f %16.3f\n" % (1,
+                self.material['E'],self.material['nu'],self.material['rho'],self.material['alpha']))
+
+            file.write("\n")
+            file.write("### Sets of element nodal properties\n")
+            file.write("# ispen\n")
+            file.write(" %6d\n" % 1)
+            file.write("# inode       barea        binet        bin2l        bin3l        bangl(deg)\n")
+            for inode in range(1, nnode+1):
+                file.write(" %6d     %15.3f  %15.3f   %15.3f   %15.3f   %15.3f\n" % (inode,
+                    self.area, self.inertia, self.inertia2, self.inertia3, self.angle))
+
+            file.write("\n")
+            file.write("### Element parameter index, material properties index, element nodal\n")
+            file.write("### properties index and list of the nodes of each element\n")
+            file.write("# ielem ielps matno ielnp       lnods ...\n")
+            count = 0
+            for i, elem in enumerate(eleTags[0]):
+                file.write(" %6d %5d %5d %5d    " % (i+1, 1, 1, 1))
+                for inode in range(nnode):
+                    file.write(" %8d" % eleNodes[0][count])
+                    count += 1
+                file.write("\n")
+
+            file.write("\n")
+            file.write("### Coordinates of the points\n")
+            file.write("# ipoin            coord-x            coord-y            coord-z\n")
+            icount = 1
+            for i, ipoin in enumerate(nodeTags):
+                node = coordlist[i+1]
+                count = int(3*node)
+                file.write(" %6d    %16.8lf   %16.8lf   %16.8lf\n" % (i+1, 
+                            nodeCoords[count], nodeCoords[count+1], nodeCoords[count+2]))
+                icount += 1
+
+            file.write("\n")
+            file.write("### Points with fixed degrees of freedom and fixity codes (1-fixed0-free)\n")
+            file.write("# ivfix  nofix       ifpre ...\n")
+            count = 1
+            for i, fix in self.fixno.items():
+                if fix==FIXED:
+                    file.write(" %6d %6d      1  1  1  1  1  1\n" % (count, i))
+                elif fix == HINGED:
+                    file.write(" %6d %6d      1  1  1  1  0  1\n" % (count, i))
+                elif fix == HORIZONTAL:
+                    file.write(" %6d %6d      1  0  1  1  0  1\n" % (count, i))
+                elif fix == VERTICAL:
+                    file.write(" %6d %6d      0  1  1  1  0  1\n" % (count, i))
+                elif fix == ROTATION:
+                    file.write(" %6d %6d      0  0  1  1  1  1\n" % (count, i))
+                elif fix == HOR_ROT:
+                    file.write(" %6d %6d      1  0  1  1  1  1\n" % (count, i))
+                elif fix == VER_ROT:
+                    file.write(" %6d %6d      0  1  1  1  1  1\n" % (count, i))
+                else:
+                    continue
+
+                count += 1
+
+            file.write("\n")
+            file.write("# ===================================================================\n")
+
+            file.write("\n")
+            file.write("### Load case n. %8d\n" % 1)
+
+            file.write("\n")
+            file.write("### Title of the load case\n")
+            file.write("Uniform distributed load\n")
+
+            file.write("\n")
+            file.write("### Load parameters\n")
+            file.write("%5d # nplod (n. of point loads in nodal points)\n" % 0)
+            file.write("%5d # ngrav (gravity load flag: 1-yes0-no)\n" % 0)
+            file.write("%5d # nedge (n. of edge loads) (F.E.M. only)\n" % 0)
+            file.write("%5d # nface (n. of face loads) (F.E.M. only)\n" % 0)
+            file.write("%5d # ntemp (n. of points with temperature variation) (F.E.M. only)\n" % 0)
+            file.write("%5d # nudis (n. of uniformly distributed loads\n" % self.nelems)
+            file.write("%5d # nepoi (n. of element point loads) (3d frames and trusses only)\n" % 0)
+            file.write("%5d # nprva (n. of prescribed and non zero degrees of freedom)\n" % 0)
+
+            file.write("\n")
+            file.write("### Uniformly distributed load in 3d frame elements (loaded element\n")
+            file.write("### and load value) (local coordinate system)\n")
+            file.write("# iudis  loelu    udisl-x    udisl-y    udisl-z   udisl-tx   udisl-ty   udisl-tz\n")            
+            count = 0
+            for i, elem in enumerate(eleTags[0]):
+                for j in range(nnode):
+                    file.write(" %5d %5d %16.3f %16.3f %16.3f %16.3f %16.3f %16.3f\n" % (i, elemlist[elem], 
+                                0.0, 0.0, self.load, 0.0, 0.0, 0.0))
+                    count += 1
+
+            file.write("\n")
+            file.write("END_OF_FILE\n")
+
+        jobname = str(path.parent / path.stem)
+        ofemlib.ofemSolver(jobname)
+
+        options = {'csryn': 'n', 'ksres': 2}
+        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV, ofemlib.RS_CSV]
+        ofemlib.ofemResults(jobname, codes, **options)
+
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.DI_CSV)
+        for i in range(1, 4):
+            t1 = gmsh.view.add("disp-" + str(i))
+            gmsh.view.addHomogeneousModelData(
+                    t1, 0, "beam", "NodeData", df["point"].values, df['disp-'+str(i)].values) 
+
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.AST_CSV)
+        for i in range(1, 6):
+            t1 = gmsh.view.add("str_avg-" + str(i))
+            gmsh.view.addHomogeneousModelData(
+                    t1, 0, "beam", "NodeData", df['point'].values, df['str-'+str(i)].values) 
+
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
+        unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
+        for i in range(1, 6):
+            t1 = gmsh.view.add("str_eln-" + str(i))
+            gmsh.view.addHomogeneousModelData(
+                    t1, 0, "beam", "ElementNodeData", unique_values, df['str-'+str(i)].values) 
 
         return
 

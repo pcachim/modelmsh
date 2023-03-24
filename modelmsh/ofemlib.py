@@ -6,6 +6,10 @@ import os
 import pandas as pd
 import pathlib
 import zipfile
+import io
+import sys
+import threading
+
 
 ME_S3D  =  1 # /*    1) _me.s3d file with the undeformed mesh.                      */
 GE_S3D  =  2 # /*    2) _ge.s3d file with the geometric data.                       */
@@ -41,6 +45,20 @@ SURF_MIDDLE = 2
 SURF_TOP = 3
 
 
+captured_stdout = ''
+stdout_pipe = os.pipe()
+# stdout_fileno = sys.stdout.fileno()
+# stdout_save = os.dup(stdout_fileno)
+
+def drain_pipe():
+    global captured_stdout
+    while True:
+        data = os.read(stdout_pipe[0], 1024)
+        if not data:
+            break
+        captured_stdout += data.decode()
+
+
 #lib_path = os.path.join(os.getcwd(), 'build/src/libfemixpy.dylib')
 lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libfemixpy.dylib')
 try:
@@ -53,11 +71,19 @@ prefemixlib = libfemixpy.prefemixlib
 prefemixlib.restype = int
 femixlib = libfemixpy.femixlib
 femixlib.restype = int
+
 posfemixlib = libfemixpy.posfemixlib
 posfemixlib.restype = int
 
 posofemlib = libfemixpy.posofemlib
 posofemlib.restype = int
+
+
+ofemfilessuffix = ['.gldat', '.cmdat', '.log',
+                '_gl.bin', '_re.bin', '_di.bin', '_sd.bin', '_st.bin', 
+                '_di.csv', '_avgst.csv', '_elnst.csv', 
+                '_gpstr.csv', '_react.csv', '_fixfo.csv', '_csv.info']
+
 
 
 def compress_ofem(filename: str):
@@ -69,34 +95,16 @@ def compress_ofem(filename: str):
     Returns:
         error code: 0 if no error, 1 if error
     """""""""
+    path = pathlib.Path(filename + '.ofem')
+    mode = 'w' if not path.exists() else 'a'
     jobname = pathlib.Path(filename).stem
-    with zipfile.ZipFile(filename + '.ofem', 'w') as ofemfile:
-        if pathlib.Path(filename + '.gldat').exists():
-            ofemfile.write(filename + '.gldat', arcname=jobname+".gldat", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_gl.bin').exists():
-            ofemfile.write(filename + '_gl.bin', arcname=jobname+"_gl.bin")
-        if pathlib.Path(filename + '_re.bin').exists():
-            ofemfile.write(filename + '_re.bin', arcname=jobname+"_re.bin")
-        if pathlib.Path(filename + '_di.bin').exists():
-            ofemfile.write(filename + '_di.bin', arcname=jobname+"_di.bin")
-        if pathlib.Path(filename + '_sd.bin').exists():
-            ofemfile.write(filename + '_sd.bin', arcname=jobname+"_sd.bin")
-        if pathlib.Path(filename + '_st.bin').exists():
-            ofemfile.write(filename + '_st.bin', arcname=jobname+"_st.bin", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_di.csv').exists():
-            ofemfile.write(filename + '_di.csv', arcname=jobname+"_di.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_avgst.csv').exists():
-            ofemfile.write(filename + '_avgst.csv', arcname=jobname+"_avgst.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_elnst.csv').exists():
-            ofemfile.write(filename + '_elnst.csv', arcname=jobname+"_elnst.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_gpstr.csv').exists():
-            ofemfile.write(filename + '_gpstr.csv', arcname=jobname+"_gpstr.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_react.csv').exists():
-            ofemfile.write(filename + '_react.csv', arcname=jobname+"_react.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_fixfo.csv').exists():
-            ofemfile.write(filename + '_fixfo.csv', arcname=jobname+"_fixfo.csv", compress_type=zipfile.ZIP_DEFLATED)
-        if pathlib.Path(filename + '_csv.info').exists():
-            ofemfile.write(filename + '_csv.info', arcname=jobname+"_csv.info", compress_type=zipfile.ZIP_DEFLATED)
+    with zipfile.ZipFile(filename + '.ofem', mode) as ofemfile:
+        files = ofemfile.namelist()
+        for suffix in ofemfilessuffix:
+            fname = filename + suffix
+            arcname = jobname + suffix
+            if pathlib.Path(fname).exists() and arcname not in files:
+                ofemfile.write(fname, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
 
     remove_ofem_files(filename)
     return
@@ -146,32 +154,16 @@ def get_csv_from_ofem(filename: str, code: int) -> pd.DataFrame:
 
 
 def remove_ofem_files(filename: str):
-    if pathlib.Path(filename + '.gldat').exists():
-        os.remove(filename + '.gldat')
-    if pathlib.Path(filename + '_gl.bin').exists():
-        os.remove(filename + '_gl.bin')
-    if pathlib.Path(filename + '_re.bin').exists():
-        os.remove(filename + '_re.bin')
-    if pathlib.Path(filename + '_di.bin').exists():
-        os.remove(filename + '_di.bin')
-    if pathlib.Path(filename + '_sd.bin').exists():
-        os.remove(filename + '_sd.bin')
-    if pathlib.Path(filename + '_st.bin').exists():
-        os.remove(filename + '_st.bin')
-    if pathlib.Path(filename + '_di.csv').exists():
-        os.remove(filename + '_di.csv')
-    if pathlib.Path(filename + '_avgst.csv').exists():
-        os.remove(filename + '_avgst.csv')
-    if pathlib.Path(filename + '_elnst.csv').exists():
-        os.remove(filename + '_elnst.csv')
-    if pathlib.Path(filename + '_gpstr.csv').exists():
-        os.remove(filename + '_gpstr.csv')
-    if pathlib.Path(filename + '_react.csv').exists():
-        os.remove(filename + '_react.csv')
-    if pathlib.Path(filename + '_fixfo.csv').exists():
-        os.remove(filename + '_fixfo.csv')
-    if pathlib.Path(filename + '_csv.info').exists():
-        os.remove(filename + '_csv.info')
+    for suffix in ofemfilessuffix:
+        fname = filename + suffix
+        if pathlib.Path(fname).exists():
+            os.remove(fname)
+    return
+
+def delete_ofem(filename: str):
+    path = pathlib.Path(filename + '.ofem')
+    if path.exists():
+        path.unlink()
     return
 
 
@@ -328,6 +320,20 @@ def ofemResults(filename: str, codes: list, **kwargs):
 
     ncode = len(codes)
 
+    global stdout_pipe
+    global captured_stdout 
+    captured_stdout = ''
+    stdout_pipe = os.pipe()
+    stdout_fileno = sys.stdout.fileno()
+    stdout_save = os.dup(stdout_fileno)
+
+    os.dup2(stdout_pipe[1], stdout_fileno)
+    os.close(stdout_pipe[1])
+
+    t = threading.Thread(target=drain_pipe)
+    t.start()
+
+
     # Pass a pointer to the integer object to the C function
     myarray = (c_int * len(codes))(*codes)
     n = posofemlib(filename.encode(), c_int(ncode), myarray,
@@ -335,10 +341,23 @@ def ofemResults(filename: str, codes: list, **kwargs):
                     stnod.encode(), csryn.encode(), 
                     c_int(ksres), c_int(kstre), c_int(kdisp))
 
+
+    # Close the write end of the pipe to unblock the reader thread and trigger it to exit
+    os.close(stdout_fileno)
+    t.join()
+
+    # Clean up the pipe and restore the original stdout
+    os.close(stdout_pipe[0])
+    os.dup2(stdout_save, stdout_fileno)
+    os.close(stdout_save)
+
+    with open(filename + '.log', 'a') as file:
+        file.write(captured_stdout)
+
     compress_ofem(filename)
     #add_to_ofem(filename)
 
-    return n
+    return captured_stdout
 
 
 def ofemSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
@@ -362,13 +381,44 @@ def ofemSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
         randsn = 1.0e-6
         print("\n'randsn' must be > 0. 'randsn' changed to 1.0e-6")
 
+
+    # Redirect stdout to a StringIO object
+    # Create pipe and dup2() the write end of it on top of stdout, saving a copy of the old stdout
+    # global stdout_fileno
+    # global stdout_save
+    global stdout_pipe
+    global captured_stdout
+    captured_stdout = ''
+    stdout_pipe = os.pipe()
+    stdout_fileno = sys.stdout.fileno()
+    stdout_save = os.dup(stdout_fileno)
+
+    os.dup2(stdout_pipe[1], stdout_fileno)
+    os.close(stdout_pipe[1])
+
+    t = threading.Thread(target=drain_pipe)
+    t.start()
+
     n = prefemixlib(filename.encode())
     n = femixlib(filename.encode(), soalg.encode(), c_double(randsn))
     print()
-    
+
+    # Close the write end of the pipe to unblock the reader thread and trigger it to exit
+    os.close(stdout_fileno)
+    t.join()
+
+    # Clean up the pipe and restore the original stdout
+    os.close(stdout_pipe[0])
+    os.dup2(stdout_save, stdout_fileno)
+    os.close(stdout_save)
+
+    with open(filename + '.log', 'a') as file:
+        file.write(captured_stdout)
+
+    delete_ofem(filename)
     compress_ofem(filename)
 
-    return n
+    return captured_stdout
 
 
 def ofemReadCSV(filename: str) -> pd.DataFrame:
