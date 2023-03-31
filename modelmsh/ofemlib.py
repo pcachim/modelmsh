@@ -47,8 +47,6 @@ SURF_TOP = 3
 
 captured_stdout = ''
 stdout_pipe = os.pipe()
-# stdout_fileno = sys.stdout.fileno()
-# stdout_save = os.dup(stdout_fileno)
 
 def drain_pipe():
     global captured_stdout
@@ -59,7 +57,6 @@ def drain_pipe():
         captured_stdout += data.decode()
 
 
-#lib_path = os.path.join(os.getcwd(), 'build/src/libfemixpy.dylib')
 lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libfemixpy.dylib')
 try:
     libfemixpy = CDLL(lib_path)
@@ -83,7 +80,6 @@ ofemfilessuffix = ['.gldat', '.cmdat', '.log',
                 '_gl.bin', '_re.bin', '_di.bin', '_sd.bin', '_st.bin', 
                 '_di.csv', '_avgst.csv', '_elnst.csv', 
                 '_gpstr.csv', '_react.csv', '_fixfo.csv', '_csv.info']
-
 
 
 def compress_ofem(filename: str):
@@ -159,6 +155,7 @@ def remove_ofem_files(filename: str):
         if pathlib.Path(fname).exists():
             os.remove(fname)
     return
+
 
 def delete_ofem(filename: str):
     path = pathlib.Path(filename + '.ofem')
@@ -333,14 +330,12 @@ def ofemResults(filename: str, codes: list, **kwargs):
     t = threading.Thread(target=drain_pipe)
     t.start()
 
-
     # Pass a pointer to the integer object to the C function
     myarray = (c_int * len(codes))(*codes)
     n = posofemlib(filename.encode(), c_int(ncode), myarray,
                     lcaco.encode(), cstyn.encode(), 
                     stnod.encode(), csryn.encode(), 
                     c_int(ksres), c_int(kstre), c_int(kdisp))
-
 
     # Close the write end of the pipe to unblock the reader thread and trigger it to exit
     os.close(stdout_fileno)
@@ -371,7 +366,9 @@ def ofemSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
     Returns:
         error code: 0 if no error, 1 if error
     """
-    
+
+    delete_ofem(filename)
+
     soalg = soalg.lower()
     if soalg not in ['d', 'i']:
         soalg = 'd'
@@ -381,11 +378,8 @@ def ofemSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
         randsn = 1.0e-6
         print("\n'randsn' must be > 0. 'randsn' changed to 1.0e-6")
 
-
     # Redirect stdout to a StringIO object
     # Create pipe and dup2() the write end of it on top of stdout, saving a copy of the old stdout
-    # global stdout_fileno
-    # global stdout_save
     global stdout_pipe
     global captured_stdout
     captured_stdout = ''
@@ -415,7 +409,6 @@ def ofemSolver(filename: str, soalg: str='d', randsn: float=1.0e-6) -> int:
     with open(filename + '.log', 'a') as file:
         file.write(captured_stdout)
 
-    delete_ofem(filename)
     compress_ofem(filename)
 
     return captured_stdout
@@ -439,3 +432,37 @@ def ofemReadPVA(filename: str) -> pd.DataFrame:
     df = pd.read_csv(filename, sep='\s+', header=None)
     df.columns = ['point', 'values']
     return df
+
+
+def write_combo_file(filename: str, ncase: int):
+    
+    path = pathlib.Path(filename)
+    if path.suffix.lower() == ".gldat":
+        mesh_file = str(path.parent / path.stem) + ".cmdat"
+    elif path.suffix == "":
+        mesh_file = str(path.parent / path.stem) + ".cmdat"
+    elif path.suffix.lower() == ".cmdat":
+        mesh_file = filename
+    
+    with open(mesh_file, 'w') as file:
+
+        file.write("### Main title of the problem\n")
+        file.write("Combinations file\n")
+
+        file.write("### Number of combinations\n")
+        file.write(" %5d # ncomb (number of combinations)\n\n", ncase)
+
+        for i in range(ncase):
+            file.write("### Combination title\n")
+            file.write("Load case n. %d\n", i+1)
+            file.write("### Combination number\n")
+            file.write("# combination n. (icomb) and number of load cases in combination (lcase)\n")
+            file.write("# icomb    lcase\n")
+            file.write("  %5d        1\n", i+1)
+            file.write("### Coeficients\n")
+            file.write("# load case number (icase) and load coefficient (vcoef)\n")
+            file.write("# icase      vcoef\n")
+            file.write("  %5d       1.00\n", i+1)
+            file.write("\n")
+
+        file.write("END_OF_FILE\n")

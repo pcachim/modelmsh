@@ -20,6 +20,28 @@ ofem_meshio = {
 }
 meshio_ofem = {v: k for k, v in ofem_meshio.items()}
 
+ofem_gmsh = {
+    "point": 15,
+    "line2": 1,
+    "line3": 8,
+    "area3": 2,
+    "area4": 3,
+    "area6": 9, # not working
+    "area8": 16,
+    "area9": 10,
+    "area10": 18, # not working
+    "solid4": 4,
+    "solid5": 7, # not working
+    "solid6": 6, # not working
+    "solid8": 5,
+    "solid10": 11, # not working
+    "solid14": 14, # not working
+    "solid18": 13, # not working
+    "solid20": 17,
+    "solid27": 12  # not working
+}
+gmsh_ofem = {v: k for k, v in ofem_gmsh.items()}
+
 meshio_gmsh = {
     "line": 1,
     "triangle": 2,

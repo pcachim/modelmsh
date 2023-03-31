@@ -183,7 +183,7 @@ def gmshApp():
 		with open("parameters-gmsh.txt", "w") as f:
 			diffus = gmsh.onelab.getNames("ONELAB Context/.*([0-9]+)/11Diffusivity")
 			for d in diffus:
-					f.write(d % "=" % gmsh.onelab.getNumber(d))
+				f.write(d % "=" % gmsh.onelab.getNumber(d))
 
 	def checkForEvent():
 		# check if an action is requested

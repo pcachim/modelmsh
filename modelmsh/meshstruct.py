@@ -8,6 +8,7 @@ import pathlib
 #import eurocodepy as ec
 from . import ofemlib
 from ._common import *
+from . import msh
 
 # slabs
 RECTANGULAR = 1
@@ -34,7 +35,7 @@ HOR_ROT = 1101
 VER_ROT = 1011
 
 
-def rot(point1: tuple, point2: tuple, angle: float) -> tuple:
+def rotate_point(point1: tuple, point2: tuple, angle: float) -> tuple:
     """Rotate a point counterclockwise by a given angle around a given origin.
     The angle should be given in radians.
     """
@@ -52,7 +53,7 @@ def Circle(center: tuple, radius: float, msize: float = 0.3):
     pt3 = gmsh.model.geo.addPoint(center[0]-radius, center[1], center[2], msize)
     sf1 = gmsh.model.geo.addCircleArc(pt2, pt1, pt3)
     sf2 = gmsh.model.geo.addCircleArc(pt3, pt1, pt2)
-    circle = gmsh.model.geo.addCurveLoop([sf1, sf2],)
+    circle = gmsh.model.geo.addCurveLoop([sf1, sf2])
     area = gmsh.model.geo.addPlaneSurface([circle])
     gmsh.model.geo.synchronize()
     # gmsh.option.setNumber("Mesh.ElementOrder", 2)
@@ -60,17 +61,32 @@ def Circle(center: tuple, radius: float, msize: float = 0.3):
     gmsh.model.mesh.generate(2)
 
 
-def CircleWithHole(center: tuple, radius: float, angle: float, msize: float = 0.3):
-    pass
+def CircleWithHole(center: tuple, radius_ext: float, radius_int: float, msize: float = 0.3):
+    gmsh.model.add("slab")
+    circ_out = gmsh.model.occ.addDisk(center[0], center[1], center[2], radius_ext, radius_ext)
+    circ_int = gmsh.model.occ.addDisk(center[0], center[1], center[2], radius_int, radius_int)
+    a, b = gmsh.model.occ.cut([(2, circ_out)], [(2, circ_int)])
+
+    gmsh.model.occ.synchronize()
+
+    for e in gmsh.model.getEntities(1):
+        gmsh.model.addPhysicalGroup(1, [e[1]], name = "fix: free%d"%e[1])
+
+    gmsh.model.mesh.setSize(gmsh.model.getEntities(-1), msize)
+
+    # gmsh.option.setNumber("Mesh.ElementOrder", 2)
+    # gmsh.option.setNumber("Mesh.HighOrderOptimize", 2)
+    gmsh.model.mesh.generate(2)
+    return 
 
 
 def CircleSegment(center: tuple, radius: float, startangle: float, endangle: float, msize: float = 0.3):
     gmsh.model.add("slab")
     angle = endangle - startangle
     pt1 = gmsh.model.geo.addPoint(center[0], center[1], center[2], msize)
-    pn2 = rot(center, (center[0]+radius, center[1]), startangle)
+    pn2 = rotate_point(center, (center[0]+radius, center[1]), startangle)
     pt2 = gmsh.model.geo.addPoint(pn2[0], pn2[1], center[2], msize)
-    pn3 = rot(center, (center[0]+radius, center[1]), endangle)
+    pn3 = rotate_point(center, (center[0]+radius, center[1]), endangle)
     pt3 = gmsh.model.geo.addPoint(pn3[0], pn3[1], center[2], msize)
     sf1 = gmsh.model.geo.addCircleArc(pt2, pt1, pt3)
     sf2 = gmsh.model.geo.addLine(pt3, pt1)
@@ -87,9 +103,9 @@ def CircleSegment(center: tuple, radius: float, startangle: float, endangle: flo
 def CirleQuarter(center: tuple, radius: float, angle: float, msize: float = 0.3):
     gmsh.model.add("slab")
     pt1 = gmsh.model.geo.addPoint(center[0], center[1], center[2], msize)
-    pn2 = rot(center, (center[0]+radius, center[1]), angle)
+    pn2 = rotate_point(center, (center[0]+radius, center[1]), angle)
     pt2 = gmsh.model.geo.addPoint(pn2[0], pn2[1], center[2], msize)
-    pn3 = rot(center, (center[0], center[1]+radius), angle)
+    pn3 = rotate_point(center, (center[0], center[1]+radius), angle)
     pt3 = gmsh.model.geo.addPoint(pn3[0], pn3[1], center[2], msize)
     sf1 = gmsh.model.geo.addCircleArc(pt2, pt1, pt3)
     sf2 = gmsh.model.geo.addLine(pt3, pt1)
@@ -114,11 +130,11 @@ def CirleQuarter(center: tuple, radius: float, angle: float, msize: float = 0.3)
 def Rectangle(bleft: tuple, width: float, height: float, angle: float, msize: float = 0.3):
     gmsh.model.add("slab")
     pt1 = gmsh.model.geo.addPoint(bleft[0]      , bleft[1]       , bleft[2], msize)
-    pn2 = rot(bleft, (bleft[0]+width, bleft[1]), angle)
+    pn2 = rotate_point(bleft, (bleft[0]+width, bleft[1]), angle)
     pt2 = gmsh.model.geo.addPoint(pn2[0], pn2[1], bleft[2], msize)
-    pn3 = rot(bleft, (bleft[0]+width, bleft[1]+height), angle)
+    pn3 = rotate_point(bleft, (bleft[0]+width, bleft[1]+height), angle)
     pt3 = gmsh.model.geo.addPoint(pn3[0], pn3[1], bleft[2], msize)
-    pn4 = rot(bleft, (bleft[0], bleft[1]+height), angle)
+    pn4 = rotate_point(bleft, (bleft[0], bleft[1]+height), angle)
     pt4 = gmsh.model.geo.addPoint(pn4[0], pn4[1], bleft[2], msize)
     sf1 = gmsh.model.geo.addLine(pt1, pt2)
     sf2 = gmsh.model.geo.addLine(pt2, pt3)
@@ -135,9 +151,9 @@ def Rectangle(bleft: tuple, width: float, height: float, angle: float, msize: fl
 
 def Triangle(point1: tuple, point2: tuple, point3: tuple, angle: float, msize: float = 0.3):
     pt1 = gmsh.model.geo.addPoint(point1[0], point1[1], point1[2], msize)
-    pn2 = rot(point1, point2, angle)
+    pn2 = rotate_point(point1, point2, angle)
     pt2 = gmsh.model.geo.addPoint(pn2[0], pn2[1], point2[2], msize)
-    pn2 = rot(point1, point3, angle)
+    pn2 = rotate_point(point1, point3, angle)
     pt3 = gmsh.model.geo.addPoint(pn2[0], pn2[1], point3[2], msize)
     sf1 = gmsh.model.geo.addLine(pt1, pt2)
     sf2 = gmsh.model.geo.addLine(pt2, pt3)
@@ -258,7 +274,8 @@ class Slab:
             msize = 0.3 if len(args) < 4 else args[3]
             CirleQuarter(args[0], args[1], args[2], msize)
         elif geometry == CIRCULAR_WITH_HOLE:
-            pass
+            msize = 0.3 if len(args) < 4 else args[3]
+            CircleWithHole(args[0], args[1], args[2], msize)
         elif geometry == CIRCULAR_SEGMENT:
             msize = 0.3 if len(args) < 5 else args[4]
             CircleSegment(args[0], args[1], args[2], args[3], msize)
@@ -480,13 +497,12 @@ class Slab:
 
             file.write("END_OF_FILE\n")
 
-
         jobname = str(path.parent / path.stem)
         txt = ofemlib.ofemSolver(jobname)
 
         options = {'csryn': 'n', 'ksres': 2, 'lcaco': 'c'}
         # codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV, ofemlib.RS_CSV]
-        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV]
+        codes = [ofemlib.DI_CSV, ofemlib.AST_CSV, ofemlib.EST_CSV]
         txt = ofemlib.ofemResults(jobname, codes, **options)
 
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.DI_CSV)
@@ -495,6 +511,14 @@ class Slab:
             dff = df.loc[df['icomb'] == 1]
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "slab", "NodeData", dff["point"].values, dff['disp-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
+            
+        t1 = gmsh.view.add("deformed mesh")
+        dff = df.loc[df['icomb'] == 1]
+        npoin = dff.shape[0]
+        displ = np.stack([np.zeros(npoin), np.zeros(npoin), dff['disp-1'].values], axis=1).reshape(3*npoin)
+        gmsh.view.addHomogeneousModelData(
+                t1, 0, "slab", "NodeData", dff["point"].values, displ, numComponents=3) 
 
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.AST_CSV)
         for i in range(1, 6):
@@ -502,16 +526,31 @@ class Slab:
             dff = df.loc[df['icomb'] == 1]
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "slab", "NodeData", dff['point'].values, dff['str-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
 
-        # df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
-        # unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
-        # for i in range(1, 6):
-        #     t1 = gmsh.view.add("str_eln-" + str(i))
-        #     gmsh.view.addHomogeneousModelData(
-        #             t1, 0, "slab", "ElementNodeData", unique_values, df['str-'+str(i)].values) 
+        df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
+        unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
+        for i in range(1, 6):
+            t1 = gmsh.view.add("str_eln-" + str(i))
+            dff = df.loc[df['icomb'] == 1]
+            gmsh.view.addHomogeneousModelData(
+                    t1, 0, "slab", "ElementNodeData", unique_values, dff['str-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
 
         return
 
+    def getNodes(self):
+        nodes = msh.getNodes(gmsh.model)
+        return
+
+    def getElements(self):
+        elems = msh.getElementShell(gmsh.model)
+        return
+
+    def getBoundaries(self):
+        bounds = msh.getBoundaries(gmsh.model)
+        return
+    
     def run(self):
         # Launch the GUI to see the results:
         if '-nopopup' not in sys.argv:
@@ -611,7 +650,7 @@ class Beam:
         with open(mesh_file, 'w') as file:
 
             file.write("### Main title of the problem\n")
-            file.write("Slab mesh\n")
+            file.write("Beam mesh\n")
 
             file.write("\n")
             file.write("### Main parameters\n")
@@ -738,6 +777,29 @@ class Beam:
             file.write("\n")
             file.write("END_OF_FILE\n")
 
+        if path.suffix.lower() == ".gldat":
+            mesh_file = str(path.parent / path.stem) + ".cmdat"
+        
+        with open(mesh_file, 'w') as file:
+
+            file.write("### Main title of the problem\n")
+            file.write("Beam mesh\n")
+
+            file.write("### Number of combinations\n")
+            file.write("      2 # ncomb (number of combinations)\n\n")
+
+            file.write("### Combination title\n")
+            file.write("G\n")
+            file.write("### Combination number\n")
+            file.write("# combination n. (icomb) and number off load cases in combination (ncase)\n")
+            file.write("# icomb    lcase\n")
+            file.write("      1        1\n")
+            file.write("### Coeficients\n")
+            file.write("# load case number (icase) and load coefficient (vcoef)\n")
+            file.write("# icase      vcoef\n")
+            file.write("      1       1.00\n")
+            file.write("\n")
+
         jobname = str(path.parent / path.stem)
         ofemlib.ofemSolver(jobname)
 
@@ -750,12 +812,14 @@ class Beam:
             t1 = gmsh.view.add("disp-" + str(i))
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "beam", "NodeData", df["point"].values, df['disp-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
 
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.AST_CSV)
         for i in range(1, 6):
             t1 = gmsh.view.add("str_avg-" + str(i))
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "beam", "NodeData", df['point'].values, df['str-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
 
         df = ofemlib.get_csv_from_ofem(jobname, ofemlib.EST_CSV)
         unique_values = [elemlist.get(item, item) for item in df["element"].unique().tolist()]
@@ -763,6 +827,7 @@ class Beam:
             t1 = gmsh.view.add("str_eln-" + str(i))
             gmsh.view.addHomogeneousModelData(
                     t1, 0, "beam", "ElementNodeData", unique_values, df['str-'+str(i)].values) 
+            gmsh.view.option.setNumber(t1, "Visible", 0)
 
         return
 
